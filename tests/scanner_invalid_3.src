@@ -1,0 +1,20 @@
+/*   test */ // ok
+
+red blue
+
+/* green /* foo */
+bar */
+
+spam
+spam
+
+// /*
+yellow
+// */
+
+
+/* green /* foo */ bar */
+
+/* testing
+
+ok

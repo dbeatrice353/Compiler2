@@ -8,3 +8,4 @@ with open(file_name,'r') as f:
 
 scanner = Scanner()
 tokens = scanner.scan(code)
+print tokens

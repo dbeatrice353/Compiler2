@@ -33,7 +33,7 @@ program program_name is
 begin
 
   foo[9] := 1/33 + var_name_1738[0] - (3.222 + 23.4332/32.2 + foo[0]*foo[2]);
-  string_variable := "this is a test";
+  string_variable := "this_is_a_test";
   string_variable := "testing";
   do_things("test",foo,f);
   do_things(string_variable,foo,f);
@@ -47,11 +47,11 @@ begin
       foo := foo + 33;
     end if
   else
-    putString("THIS IS A TEST");
+    putString("THIS_IS_A_TEST");
     putChar("x");
     putInteger(33333);
   end if
 
-  putString("hello, world");
-  
+  putString("hello_world");
+
 end program.
