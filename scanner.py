@@ -20,6 +20,12 @@ class Character:
     def matches(self,c):
         return self.value == c
 
+    def matches_any(self,character_list):
+        for c in character_list:
+            if self.value == c:
+                return True
+        return False
+
     def is_letter(self):
         return self._is_letter
 
@@ -31,6 +37,10 @@ class Character:
 
     def valid_charater(self):
         return self._valid_character
+
+    def __repr__(self):
+        return "%i"%(ord(self.value))
+        #return "\'%s\'"%(self.value)
 
 
 class Token:
@@ -48,8 +58,14 @@ class Token:
     def set_line(self,line):
         self.line = line
 
-    def __repr__(self):
+    def as_string(self):
         return "<%s, \'%s\', %i>"%(self.type,self.value,self.line)
+
+    def __str__(self):
+        return self.as_string()
+
+    def __repr__(self):
+        return self.as_string()
 
 
 class Scanner:
@@ -80,54 +96,73 @@ class Scanner:
     def _preprocess_code(self,code):
         character_list = list(code)
         character_records = self._create_character_records(character_list)
-        character_records = self._discard_comments(character_records)
+        character_records = self._discard_single_line_comments(character_records)
+        character_records = self._discard_multi_line_comments(character_records)
         return character_records
 
-    def _discard_comments(self,character_list): # *w/o regular expression...
+    def _discard_single_line_comments(self,character_list): # *w/o regular expression...
+        # discard single-line comments
+        result = []
+        comment = False
+        i = 0
+        while True:
+            if i >= len(character_list)-1:
+                break
+            else:
+                if not comment:
+                    c1 = character_list[i]
+                    c2 = character_list[i+1]
+                    if c1.matches('/') and c2.matches('/'):
+                        comment = True
+                        i += 2
+                    else:
+                        result.append(c1)
+                        i += 1
+                else: # comment == True
+                    c = character_list[i]
+                    if c.matches('\n'):
+                        result.append(c)
+                        comment = False
+                    i += 1
+        result.append(character_list[-1])
+        return result
 
+    def _discard_multi_line_comments(self,character_list): # *w/o regular expression...
         # discard multi-line comments
         comment_depth = 0
-        temp = []
-        for i in range(0,len(character_list)-1):
-            c1 = character_list[i]
-            c2 = character_list[i+1]
-            if c1.matches('/') and c2.matches('*'):
-                comment_depth += 1
-            if c1.matches('*') and c2.matches('/'):
-                comment_depth -= 1
-            if comment_depth == 0:
-                temp.append(c1)
-                if i == len(character_list):
-                    temp.append(c2)
-        # discard single-line comments
-        final = []
-        comment = False
-        for i,char in enumerate(temp):
-            if not comment:
-                if char.matches('/'):
-                    if i+1 < len(temp):
-                        if temp[i+1].matches('/'):
-                            comment = True
-                        else:
-                            final.append(char)
-                    else:
-                        final.append(char)
+        result = []
+        i = 0
+        while True:
+            if i >= len(character_list)-1:
+                break
+            else:
+                c1 = character_list[i]
+                c2 = character_list[i+1]
+                if c1.matches('/') and c2.matches('*'):
+                    comment_depth += 1
+                    i += 2
+                elif c1.matches('*') and c2.matches('/'):
+                    comment_depth -= 1
+                    i += 2
                 else:
-                    final.append(char)
-            else: # comment == True
-                if char.matches('\n'):
-                    comment  = False
+                    if comment_depth == 0:
+                        result.append(c1)
+                        if i == len(character_list):
+                            result.append(c2)
+                    i += 1
+        if comment_depth > 0:
+            report_unclosed_comment()
+        result.append(character_list[-1])
+        return result
 
-        return final
 
     def _create_character_records(self, character_list):
         line = 1
         char_records = []
         for char in character_list:
+            char_records.append(Character(char,line))
             if char == '\n':
                 line += 1
-            else:
-                char_records.append(Character(char,line))
         return char_records
 
     def _reset_character_index(self):
@@ -165,13 +200,13 @@ class Scanner:
             elif c.matches(';'):
                 self._scan_token('SEMICOLON')
             elif c.matches('='):
-                self._step()
+                self._scan_equals()
             elif c.matches('!'):
-                self._step()
+                self._scan_not_equals()
             elif c.matches('>'):
-                self._step()
+                self._scan_greater_than()
             elif c.matches('<'):
-                self._step()
+                self._scan_less_than()
             elif c.matches('&'):
                 self._scan_token('AND')
             elif c.matches('|'):
@@ -193,9 +228,10 @@ class Scanner:
             elif c.matches('/'):
                 self._scan_token('DIVIDE')
             elif c.matches(':'):
-                self._step()
+                self._scan_assignment()
             else:
-                invalid.append(c.value)
+                if not c.matches_any(['\n','\t',' ']):
+                    report_invalid_character(c)
                 self._step()
 
     def _scan_string(self):
@@ -265,6 +301,7 @@ class Scanner:
             return
         elif not c.is_letter():
             report_malformed_word(c)
+            self._discard_current_token()
             return
         else:
             self.current_token.push(c)
@@ -292,6 +329,7 @@ class Scanner:
             self.current_token.push(c)
         else:
             report_malformed_number(c)
+            self._discard_current_token()
             return
 
         while True:
@@ -322,7 +360,136 @@ class Scanner:
                 self._save_current_token()
                 return
 
-    def _scan_token(self,type):
+    def _scan_equals(self):
+        c = self._next()
+        self.current_token.set_type("EQUALS")
+        self.current_token.set_line(c.line_no)
+
+        if c.matches(None):
+            return
+        elif c.matches('='):
+            self.current_token.push(c)
+        else:
+            report_malformed_token('equality operator',c)
+            self._discard_current_token()
+            return
+
+        c = self._next()
+        if c.matches(None):
+            return
+        elif c.matches('='):
+            self.current_token.push(c)
+            self._save_current_token()
+        else:
+            report_malformed_token('equality operator',c)
+            self._discard_current_token()
+            return
+
+    def _scan_not_equals(self):
+        c = self._next()
+        self.current_token.set_type("NOTEQUALS")
+        self.current_token.set_line(c.line_no)
+
+        if c.matches(None):
+            return
+        elif c.matches('!'):
+            self.current_token.push(c)
+        else:
+            report_malformed_token('inequality operator',c)
+            self._discard_current_token()
+            return
+
+        c = self._next()
+        if c.matches(None):
+            return
+        elif c.matches('='):
+            self.current_token.push(c)
+            self._save_current_token()
+        else:
+            report_malformed_token('inequality operator',c)
+            self._discard_current_token()
+            return
+
+    def _scan_greater_than(self):
+        c = self._next()
+        self.current_token.set_type("GREATERTHAN")
+        self.current_token.set_line(c.line_no)
+
+        if c.matches(None):
+            return
+        elif c.matches('>'):
+            self.current_token.push(c)
+        else:
+            report_malformed_token('inequality operator',c)
+            self._discard_current_token()
+            return
+
+        c = self._peek()
+        if c.matches(None):
+            self._save_current_token()
+            return
+        elif c.matches('='):
+            self._step()
+            self.current_token.push(c)
+            self.current_token.set_type("GREATEROREQUAL")
+            self._save_current_token()
+        else:
+            self._save_current_token()
+            return
+
+    def _scan_less_than(self):
+        c = self._next()
+        self.current_token.set_type("LESSTHAN")
+        self.current_token.set_line(c.line_no)
+
+        if c.matches(None):
+            return
+        elif c.matches('<'):
+            self.current_token.push(c)
+        else:
+            report_malformed_token('inequality operator',c)
+            self._discard_current_token()
+            return
+
+        c = self._peek()
+        if c.matches(None):
+            self._save_current_token()
+            return
+        elif c.matches('='):
+            self._step()
+            self.current_token.push(c)
+            self.current_token.set_type("LESSOREQUAL")
+            self._save_current_token()
+        else:
+            self._save_current_token()
+            return
+
+    def _scan_assignment(self):
+        c = self._next()
+        self.current_token.set_type("ASSIGNMENT")
+        self.current_token.set_line(c.line_no)
+
+        if c.matches(None):
+            return
+        elif c.matches(':'):
+            self.current_token.push(c)
+        else:
+            report_malformed_token('assignment operator',c)
+            self._discard_current_token()
+            return
+
+        c = self._next()
+        if c.matches(None):
+            return
+        elif c.matches('='):
+            self.current_token.push(c)
+            self._save_current_token()
+        else:
+            report_malformed_token('assignment operator',c)
+            self._discard_current_token()
+            return
+
+    def _scan_token(self,type): # single-character tokens
         c = self._next()
         self.current_token.push(c)
         self.current_token.set_type(type)
@@ -336,6 +503,14 @@ def report(message):
 
 def scanner_error(c):
     return "SCANNER ERROR (line %i): "%(c.line_no)
+
+def scanner_error_no_line_number():
+    return "SCANNER ERROR: "
+
+def report_invalid_character(c):
+    message = scanner_error(c)
+    message += "'%s' is not a valid component of any token."%(c.value)
+    report(message)
 
 def report_invalid_string_componant(c):
     message = scanner_error(c)
@@ -365,4 +540,14 @@ def report_malformed_word(c):
 def report_malformed_number(c):
     message = scanner_error(c)
     message += "malformed number using '%s'."%(c.value)
+    report(message)
+
+def report_malformed_token(type, c):
+    message = scanner_error(c)
+    message += "malformed %s using '%s'."%(type,c.value)
+    report(message)
+
+def report_unclosed_comment():
+    message = scanner_error_no_line_number()
+    message += "A multi-line comment was not closed (imbalanced)."
     report(message)

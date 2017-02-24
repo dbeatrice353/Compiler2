@@ -8,4 +8,6 @@ with open(file_name,'r') as f:
 
 scanner = Scanner()
 tokens = scanner.scan(code)
-print tokens
+
+with open(file_name + '.temp','w') as f:
+    f.write('\n'.join([t.as_string() for t in tokens]))
