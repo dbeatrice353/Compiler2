@@ -33,6 +33,7 @@ class Parser:
 
     DATA_TYPES = ['integer','float','string','char','bool']
     DECLARATION_INITS = ['global','procedure'] + DATA_TYPES
+    PARAM_DIRECTIONS = ['in','out','inout']
 
     def __init__(self):
         self._tokens = []
@@ -49,7 +50,8 @@ class Parser:
 
     def _peek(self):
         if self._current_token_index >= len(self._tokens):
-            return None
+            report_unexpected_eof()
+            exit()
         else:
             token = self._tokens[self._current_token_index]
             return token
@@ -66,76 +68,120 @@ class Parser:
         program = ParseTreeNode('program')
         program.add_child(self._parse_program_header())
         program.add_child(self._parse_program_body())
-        self._consume_token_by_value('.')
+        self._get_token_by_value('.')
         return program
 
     def _parse_program_header(self):
         program_header = ParseTreeNode('program_header')
-        self._consume_token_by_value('program')
+        self._get_token_by_value('program')
         program_header.add_child(self._parse_identifier())
-        self._consume_token_by_value('is')
+        self._get_token_by_value('is')
         return program_header
 
     def _parse_program_body(self):
         program_body = ParseTreeNode('program_body')
         while True:
-            if self._check_for_token_by_values(Parser.DECLARATION_INITS):
+            if self._next_token_value_matches(Parser.DECLARATION_INITS):
                 program_body.add_child(self._parse_declaration())
-                self._consume_token_by_value(';')
+                self._get_token_by_value(';')
             else:
                 break
-        self._consume_token_by_value('begin')
-        """
+        self._get_token_by_value('begin')
         while True:
-            if self._check_for_token_by_value('end'):
+            if self._next_token_value_matches('end'):
                 break
             else:
                 program_body.add_child(self._parse_statement())
-                self._consume_token_by_value(';')
-        """
-        self._consume_token_by_value('end')
-        self._consume_token_by_value('program')
+                self._get_token_by_value(';')
+        self._get_token_by_value('end')
+        self._get_token_by_value('program')
         return program_body
 
     def _parse_declaration(self):
         declaration = ParseTreeNode('declaration')
-        if self._check_for_token_by_value('global'):
-            declaration.set_token(self._consume_token_by_value('global'))
+        if self._next_token_value_matches('global'):
+            declaration.set_token(self._next())
 
-        if self._check_for_token_by_value('procedure'):
+        if self._next_token_value_matches('procedure'):
             declaration.add_child(self._parse_procedure_declaration())
-        elif self._check_for_token_by_values(Parser.DATA_TYPES):
+        elif self._next_token_value_matches(Parser.DATA_TYPES):
             declaration.add_child(self._parse_variable_declaration())
         else:
             report_expected_vs_encountered(str(Parser.DATA_TYPES)+" or 'procedure'",self._next())
         return declaration
 
     def _parse_procedure_declaration(self):
-        self._step()
-        return ParseTreeNode('procedure_declaration')
+        procedure_declaration = ParseTreeNode('procedure_declaration')
+        procedure_declaration.add_child(self._parse_procedure_header())
+        procedure_declaration.add_child(self._parse_procedure_body())
+        return procedure_declaration
+
+    def _parse_procedure_header(self):
+        procedure_header = ParseTreeNode('procedure_header')
+        self._get_token_by_value('procedure')
+        procedure_header.add_child(self._parse_identifier())
+        self._get_token_by_value('(')
+        if not self._next_token_value_matches(')'):
+            procedure_header.add_child(self._parse_parameter_list())
+        self._get_token_by_value(')')
+        return procedure_header
+
+    def _parse_parameter_list(self):
+        parameter_list = ParseTreeNode('parameter_list')
+        parameter_list.add_child(self._parse_parameter())
+        if not self._next_token_value_matches(')'):
+            self._get_token_by_value(',')
+            parameter_list.add_child(self._parse_parameter_list())
+        return parameter_list
+
+    def _parse_parameter(self):
+        parameter = ParseTreeNode('parameter')
+        parameter.add_child(self._parse_variable_declaration())
+        direction = self._get_token_by_value(Parser.PARAM_DIRECTIONS)
+        return parameter
+
+    def _parse_procedure_body(self):
+        procedure_body = ParseTreeNode('procedure_body')
+        while True:
+            if self._next_token_value_matches(Parser.DECLARATION_INITS):
+                procedure_body.add_child(self._parse_declaration())
+                self._get_token_by_value(';')
+            else:
+                break
+        self._get_token_by_value('begin')
+        while True:
+            if self._next_token_value_matches('end'):
+                break
+            else:
+                procedure_body.add_child(self._parse_statement())
+                self._get_token_by_value(';')
+        self._get_token_by_value('end')
+        self._get_token_by_value('procedure')
+
+        return procedure_body
 
     def _parse_variable_declaration(self):
         variable_declaration = ParseTreeNode('variable_declaration')
         variable_declaration.add_child(self._parse_type_mark())
         variable_declaration.add_child(self._parse_identifier())
-        if self._check_for_token_by_value('['):
-            self._consume_token_by_value('[')
+        if self._next_token_value_matches('['):
+            self._get_token_by_value('[')
             variable_declaration.add_child(self._parse_array_size())
-            self._consume_token_by_value(']')
+            self._get_token_by_value(']')
         return variable_declaration
 
     def _parse_array_size(self):
         array_size = ParseTreeNode('array_size')
+        array_size.set_token(self._get_token_by_type('NUMBER'))
         return array_size
 
     def _parse_type_mark(self):
         type_mark = ParseTreeNode('type_mark')
-        if self._check_for_token_by_values(Parser.DATA_TYPES):
-            type_mark.set_token(self._consume_token_by_type('WORD'))
+        if self._next_token_value_matches(Parser.DATA_TYPES):
+            type_mark.set_token(self._next())
         else:
             token = self._next()
-
-            report_expected_vs_encountered(str(Parser.DATA_TYPES), token)
+            report_expected_vs_encountered(str(Parser.DATA_TYPES), token.value, token.line)
             type_mark.set_token(Token(value='[filler]',type='WORD',line=token.line))
         return type_mark
 
@@ -145,43 +191,35 @@ class Parser:
 
     def _parse_identifier(self):
         identifier = ParseTreeNode('identifier')
-        identifier.set_token(self._consume_token_by_type('WORD'))
+        if self._next_token_type_matches('WORD'):
+            identifier.set_token(self._next())
+        else:
+            token = self._next()
+            report_expected_vs_encountered('[identifier]', token.value, token.line)
+            #filler = self._create_filler_token(value='[identifier]',type='WORD')
+            #identifier.set_token(filler)
         return identifier
 
-    def _check_for_token_by_value(self,value):
-        token = self._peek()
-        return token.value_matches(value)
+    def _next_token_value_matches(self,value):
+        return self._peek().value_matches(value)
 
-    def _check_for_token_by_values(self,value_list):
-        token = self._peek()
-        return token.value_matches_any(value_list)
+    def _next_token_type_matches(self,type):
+        return self._peek().type_matches(type)
 
-    def _check_for_token_by_type(self,type):
-        token = self._peek()
-        return token.type_matches(type)
+    def _get_token_by_value(self,value):
+        token = self._next()
+        if not token.value_matches(value):
+            report_expected_vs_encountered(str(value),token.value,token.line)
+        return token
 
-    def _consume_token_by_value(self,value):
-        token = self._peek()
-        if token is None:
-            return None
-        elif token.value_matches(value):
-            self._step()
-            return token
-        else:
-            report_expected_vs_encountered(value,token.value,token.line)
-            return Token(value=value,type='[filler]',line=token.line)
+    def _get_token_by_type(self,type):
+        token = self._next()
+        if not token.type_matches(type):
+            report_expected_vs_encountered(str(type),token.value,token.line)
+        return token
 
-    def _consume_token_by_type(self,type):
-        token = self._peek()
-        if token is None:
-            return None
-        elif token.type_matches(type):
-            self._step()
-            return token
-        else:
-            report_expected_vs_encountered('[name/word]',token.value,token.line)
-            return Token(value='[filler]',type=type,line=token.line)
-
+    def _create_filler_token(value='[filler value]',type='[filler type]',line=-1):
+        return Token(value=value,type=type,line=line)
 
 
 def report(message):
@@ -192,5 +230,8 @@ def parser_error(line):
 
 def report_expected_vs_encountered(expected,encountered,line):
     message = parser_error(line)
-    message += "token expected --> %s, token encountered --> %s"%(expected, encountered)
+    message += "token expected: \"%s\", token encountered: \"%s\""%(expected, encountered)
     report(message)
+
+def report_unexpected_eof():
+    report("SYNTACTIC ERROR: unexpected EOF")

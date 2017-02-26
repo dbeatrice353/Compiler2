@@ -49,19 +49,35 @@ class Token:
         self.type = type
         self.line = line
 
-    def value_matches(self,value):
+    def value_matches(self, value_or_values):
+        if isinstance(value_or_values,str):
+            return self._value_matches(value_or_values)
+        elif isinstance(value_or_values,list):
+            return self._value_matches_any(value_or_values)
+        else:
+            raise Exception("Provide either a string or a list of strings.")
+
+    def type_matches(self, type_or_types):
+        if isinstance(type_or_types,str):
+            return self._type_matches(type_or_types)
+        elif isinstance(type_or_types,list):
+            return self._type_matches_any(type_or_types)
+        else:
+            raise Exception("Provide either a string or a list of strings.")
+
+    def _value_matches(self,value):
         return self.value == value
 
-    def type_matches(self,type):
+    def _type_matches(self,type):
         return self.type == type
 
-    def value_matches_any(self,value_list):
+    def _value_matches_any(self,value_list):
         for value in value_list:
             if self.value == value:
                 return True
         return False
 
-    def type_matches_any(self,type_list):
+    def _type_matches_any(self,type_list):
         for type in type_list:
             if self.type == type:
                 return True
@@ -329,7 +345,7 @@ class Scanner:
             if c.matches(None):
                 self._save_current_token()
                 return
-            elif c.is_letter() or c.matches('_'):
+            elif c.is_letter() or c.is_digit() or c.matches('_'):
                 self.current_token.push(c)
                 self._step()
             else:
