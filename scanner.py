@@ -49,6 +49,24 @@ class Token:
         self.type = type
         self.line = line
 
+    def value_matches(self,value):
+        return self.value == value
+
+    def type_matches(self,type):
+        return self.type == type
+
+    def value_matches_any(self,value_list):
+        for value in value_list:
+            if self.value == value:
+                return True
+        return False
+
+    def type_matches_any(self,type_list):
+        for type in type_list:
+            if self.type == type:
+                return True
+        return False
+
     def push(self,c):
         self.value += c.value
 
@@ -502,10 +520,10 @@ def report(message):
     print message
 
 def scanner_error(c):
-    return "SCANNER ERROR (line %i): "%(c.line_no)
+    return "LEXICAL ERROR (line %i): "%(c.line_no)
 
 def scanner_error_no_line_number():
-    return "SCANNER ERROR: "
+    return "LEXICAL ERROR: "
 
 def report_invalid_character(c):
     message = scanner_error(c)
