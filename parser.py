@@ -1,4 +1,5 @@
 from scanner import Token
+from symboltable import SymbolTable
 
 #reserved_key_words = ['program','is','begin','procedure','end','global','in','out','inout','integer','bool','char','string','float','if','then','else','loop','return','not','false','true']
 
@@ -8,6 +9,9 @@ class ParseTreeNode:
         self.name = name
         self.token = None
         self.children = []
+
+    def name_matches(self, string):
+        return self.name == string
 
     def set_token(self,token):
         self.token = token
@@ -27,18 +31,38 @@ class ParseTreeNode:
             s += '\n' + child.printable_string(depth + 1)
         return s
 
+class ScopeStack:
+    def __init__(self, stack=[]):
+        self.stack = stack
 
+    def push(self,scope):
+        self.stack.append(scope)
+
+    def pop(self):
+        if len(self.stack):
+            self.stack.pop()
+
+    def as_string(self):
+        return '/'.join(self.stack)
+
+    def as_list(self):
+        return self.stack
 
 class Parser:
 
     DATA_TYPES = ['integer','float','string','char','bool']
     DECLARATION_INITS = ['global','procedure'] + DATA_TYPES
     PARAM_DIRECTIONS = ['in','out','inout']
+    EXPRESSION_OPS = ['&','|']
+    ARITH_OPS = ['+','-']
+    RELATION_OPS = ['<','>=','<=','>','==','!=']
+    TERM_OPS = ['*','/']
 
     def __init__(self):
         self._tokens = []
         self._current_token_index = 0
         self._errors = False
+        self.symbol_table = None
 
     def _error(self):
         self._errors = True
@@ -60,6 +84,7 @@ class Parser:
         self._current_token_index += 1
 
     def parse(self,tokens):
+        self.symbol_table = SymbolTable()
         self._tokens = tokens
         self._current_token_index = 0
         return self._parse_program()
@@ -119,7 +144,8 @@ class Parser:
     def _parse_procedure_header(self):
         procedure_header = ParseTreeNode('procedure_header')
         self._get_token_by_value('procedure')
-        procedure_header.add_child(self._parse_identifier())
+        identifier = self._parse_identifier()
+        procedure_header.add_child(identifier)
         self._get_token_by_value('(')
         if not self._next_token_value_matches(')'):
             procedure_header.add_child(self._parse_parameter_list())
@@ -138,6 +164,7 @@ class Parser:
         parameter = ParseTreeNode('parameter')
         parameter.add_child(self._parse_variable_declaration())
         direction = self._get_token_by_value(Parser.PARAM_DIRECTIONS)
+        parameter.set_token(direction)
         return parameter
 
     def _parse_procedure_body(self):
@@ -186,8 +213,134 @@ class Parser:
         return type_mark
 
     def _parse_statement(self):
-        self._step()
-        return ParseTreeNode('statements')
+        statement = ParseTreeNode('statement')
+        token = self._peek()
+        if token.value_matches('if'):
+            statement.add_child(self._parse_if())
+        elif token.value_matches('for'):
+            statement.add_child(self._parse_loop())
+        elif token.value_matches('return'):
+            statement.add_child(self._parse_return())
+        else:
+            statement.add_child(self._parse_assignment_statement_or_procedure_call())
+        return statement
+
+    def _parse_if(self):
+        self._next()
+        return ParseTreeNode('if')
+
+    def _parse_loop(self):
+        self._next()
+        return ParseTreeNode('loop')
+
+    def _parse_return(self):
+        self._next()
+        return ParseTreeNode('return')
+
+    def _parse_assignment_statement_or_procedure_call(self):
+        identifier = ParseTreeNode('identifier')
+        identifier.set_token(self._next())
+        next_token = self._peek()
+        if next_token.value_matches('('):
+            procedure_call = ParseTreeNode('procedure_call')
+            procedure_call.add_child(identifier)
+            self._next()
+            if not self._next_token_value_matches(')'):
+                procedure_call.add_child(self._parse_argument_list())
+            return procedure_call
+        else:
+            assignment_statement = ParseTreeNode('assignment_statement')
+            destination = ParseTreeNode('destination')
+            destination.add_child(identifier)
+            if self._next_token_value_matches('['):
+                self._next()
+                destination.add_child(self._parse_expression())
+                self._get_token_by_value(']')
+            self._get_token_by_value(':=');
+            assignment_statement.add_child(destination)
+            assignment_statement.add_child(self._parse_expression())
+            return assignment_statement
+
+    def _parse_argument_list(self):
+        self._next()
+        return ParseTreeNode('argument_list')
+
+    def _parse_expression(self):
+        expression = ParseTreeNode('expression')
+        if self._next_token_value_matches('not'):
+            expression.set_token(self._next())
+        expression.add_child(self._parse_arithop())
+        if self._next_token_value_matches(Parser.EXPRESSION_OPS):
+            expression.set_token(self._next())
+            expression.add_child(self._parse_expression())
+        return expression
+
+    def _parse_arithop(self):
+        arithop = ParseTreeNode('arithop')
+        arithop.add_child(self._parse_relation())
+        if self._next_token_value_matches(Parser.ARITH_OPS):
+            arithop.set_token(self._next())
+            arithop.add_child(self._parse_arithop())
+        return arithop
+
+    def _parse_relation(self):
+        relation = ParseTreeNode('relation')
+        relation.add_child(self._parse_term())
+        if self._next_token_value_matches(Parser.RELATION_OPS):
+            relation.set_token(self._next())
+            relation.add_child(self._parse_relation())
+        return relation
+
+    def _parse_term(self):
+        term = ParseTreeNode('term')
+        term.add_child(self._parse_factor())
+        if self._next_token_value_matches(Parser.TERM_OPS):
+            term.add_child(self._parse_term())
+        return term
+
+    def _parse_factor(self):
+        factor = ParseTreeNode('factor')
+        if self._next_token_value_matches('('):
+            self._next()
+            factor.add_child(self._parse_expression())
+            self._get_token_by_value(')')
+        else:
+            if self._next_token_value_matches('-'):
+                factor.set_token(self._next())
+            if self._next_token_type_matches('NUMBER'):
+                factor.add_child(self._parse_number())
+            elif self._next_token_type_matches('STRING'):
+                factor.add_child(self._parse_string())
+            elif self._next_token_type_matches('CHARACTER'):
+                factor.add_child(self._parse_character())
+            elif self._next_token_value_matches(['true','false']):
+                factor.set_token(self._next()) # this would overwrite a '-' i.e. in the case of '-true'
+            else:
+                factor.add_child(self._parse_name())
+        return factor
+
+    def _parse_number(self):
+        number = ParseTreeNode('number')
+        number.set_token(self._get_token_by_type('NUMBER'))
+        return number
+
+    def _parse_string(self):
+        string = ParseTreeNode('string')
+        string.set_token(self._get_token_by_type('STRING'))
+        return string
+
+    def _parse_character(self):
+        character = ParseTreeNode('character')
+        character.set_token(self._get_token_by_type('CHARACTER'))
+        return character
+
+    def _parse_name(self):
+        name = ParseTreeNode('name')
+        name.add_child(self._parse_identifier())
+        if self._next_token_value_matches('['):
+            name.add_child(self._parse_expression())
+            self._get_token_by_value(']')
+        return name
 
     def _parse_identifier(self):
         identifier = ParseTreeNode('identifier')
