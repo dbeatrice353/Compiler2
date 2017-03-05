@@ -20,7 +20,7 @@ class ParseTreeNode:
         self.children.append(child)
 
     def _as_string(self,depth):
-        s = 2*depth*' ' + "<%s>"%(self.name)
+        s = 2*depth*' |' + "<%s>"%(self.name)
         if self.token is not None:
             s += " %s"%(self.token.value)
         return s
@@ -63,9 +63,14 @@ class Parser:
         self._current_token_index = 0
         self._errors = False
         self.symbol_table = None
+        self.root = None
 
     def _error(self):
         self._errors = True
+
+    def _print_tree_to_terminal(self):
+        if self.root is not None:
+            print self.root.printable_string()
 
     def _next(self):
         token = self._peek()
@@ -91,6 +96,7 @@ class Parser:
 
     def _parse_program(self):
         program = ParseTreeNode('program')
+        self.root = program
         program.add_child(self._parse_program_header())
         program.add_child(self._parse_program_body())
         self._get_token_by_value('.')
@@ -184,7 +190,6 @@ class Parser:
                 self._get_token_by_value(';')
         self._get_token_by_value('end')
         self._get_token_by_value('procedure')
-
         return procedure_body
 
     def _parse_variable_declaration(self):
@@ -227,26 +232,59 @@ class Parser:
 
     def _parse_if(self):
         self._next()
-        return ParseTreeNode('if')
+        if_statement = ParseTreeNode('if_statement')
+        return if_statement
 
     def _parse_loop(self):
-        self._next()
-        return ParseTreeNode('loop')
+        loop_statement = ParseTreeNode('loop_statement')
+        self._get_token_by_value('for')
+        self._get_token_by_value('(')
+        loop_statement.add_child(self._parse_assignment_statement())
+        self._get_token_by_value(';')
+        loop_statement.add_child(self._parse_expression())
+        self._get_token_by_value(')')
+        while True:
+            if self._next_token_value_matches('end'):
+                break
+            else:
+                loop_statement.add_child(self._parse_statement())
+                self._get_token_by_value(';')
+        self._get_token_by_value('end')
+        self._get_token_by_value('for')
+        return loop_statement
 
     def _parse_return(self):
         self._next()
-        return ParseTreeNode('return')
+        return_statement = ParseTreeNode('return_statement')
+        return return_statement
+
+    def _parse_destination(self):
+        destination = ParseTreeNode('destination')
+        destination.add_child(self._parse_identifier())
+        if self._next_token_value_matches('['):
+            self._next()
+            destination.add_child(self._parse_expression())
+            self._get_token_by_value(']')
+        return destination
+
+    def _parse_assignment_statement(self):
+        assignment_statement = ParseTreeNode('assignment_statement')
+        assignment_statement.add_child(self._parse_destination())
+        self._get_token_by_value(':=')
+        assignment_statement.add_child(self._parse_expression())
+        return assignment_statement
 
     def _parse_assignment_statement_or_procedure_call(self):
         identifier = ParseTreeNode('identifier')
         identifier.set_token(self._next())
         next_token = self._peek()
         if next_token.value_matches('('):
+            self._next()
             procedure_call = ParseTreeNode('procedure_call')
             procedure_call.add_child(identifier)
-            self._next()
             if not self._next_token_value_matches(')'):
                 procedure_call.add_child(self._parse_argument_list())
+            self._get_token_by_value(')')
             return procedure_call
         else:
             assignment_statement = ParseTreeNode('assignment_statement')
@@ -256,14 +294,17 @@ class Parser:
                 self._next()
                 destination.add_child(self._parse_expression())
                 self._get_token_by_value(']')
-            self._get_token_by_value(':=');
             assignment_statement.add_child(destination)
+            self._get_token_by_value(':=');
             assignment_statement.add_child(self._parse_expression())
             return assignment_statement
 
     def _parse_argument_list(self):
-        self._next()
-        return ParseTreeNode('argument_list')
+        argument_list = ParseTreeNode('argument_list')
+        argument_list.add_child(self._parse_expression())
+        if not self._next_token_value_matches(')'):
+            argument_list.add_child(self._parse_argument_list())
+        return argument_list 
 
     def _parse_expression(self):
         expression = ParseTreeNode('expression')
@@ -338,6 +379,7 @@ class Parser:
         name = ParseTreeNode('name')
         name.add_child(self._parse_identifier())
         if self._next_token_value_matches('['):
+            self._next()
             name.add_child(self._parse_expression())
             self._get_token_by_value(']')
         return name
