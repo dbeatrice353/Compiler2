@@ -75,7 +75,7 @@ class Parser:
     def _next(self):
         token = self._peek()
         self._current_token_index += 1
-        return token;
+        return token
 
     def _peek(self):
         if self._current_token_index >= len(self._tokens):
@@ -114,7 +114,6 @@ class Parser:
         while True:
             if self._next_token_value_matches(Parser.DECLARATION_INITS):
                 program_body.add_child(self._parse_declaration())
-                self._get_token_by_value(';')
             else:
                 break
         self._get_token_by_value('begin')
@@ -123,7 +122,6 @@ class Parser:
                 break
             else:
                 program_body.add_child(self._parse_statement())
-                self._get_token_by_value(';')
         self._get_token_by_value('end')
         self._get_token_by_value('program')
         return program_body
@@ -137,6 +135,7 @@ class Parser:
             declaration.add_child(self._parse_procedure_declaration())
         elif self._next_token_value_matches(Parser.DATA_TYPES):
             declaration.add_child(self._parse_variable_declaration())
+            self._get_token_by_value(';')
         else:
             report_expected_vs_encountered(str(Parser.DATA_TYPES)+" or 'procedure'",self._next())
         return declaration
@@ -178,7 +177,6 @@ class Parser:
         while True:
             if self._next_token_value_matches(Parser.DECLARATION_INITS):
                 procedure_body.add_child(self._parse_declaration())
-                self._get_token_by_value(';')
             else:
                 break
         self._get_token_by_value('begin')
@@ -187,7 +185,6 @@ class Parser:
                 break
             else:
                 procedure_body.add_child(self._parse_statement())
-                self._get_token_by_value(';')
         self._get_token_by_value('end')
         self._get_token_by_value('procedure')
         return procedure_body
@@ -228,11 +225,34 @@ class Parser:
             statement.add_child(self._parse_return())
         else:
             statement.add_child(self._parse_assignment_statement_or_procedure_call())
+            self._get_token_by_value(';')
         return statement
 
     def _parse_if(self):
-        self._next()
         if_statement = ParseTreeNode('if_statement')
+        self._get_token_by_value('if')
+        self._get_token_by_value('(')
+        if_statement.add_child(self._parse_expression())
+        self._get_token_by_value(')')
+        then = ParseTreeNode('then')
+        then.set_token(self._get_token_by_value('then'))
+        if_statement.add_child(then)
+        while True:
+            if self._next_token_value_matches(['else', 'end']):
+                break
+            else:
+                then.add_child(self._parse_statement())
+        if self._next_token_value_matches('else'):
+            else_ = ParseTreeNode('else')
+            else_.set_token(self._next())
+            if_statement.add_child(else_)
+            while True:
+                if self._next_token_value_matches('end'):
+                    break
+                else:
+                    else_.add_child(self._parse_statement())
+        self._get_token_by_value('end')
+        self._get_token_by_value('if')
         return if_statement
 
     def _parse_loop(self):
@@ -248,14 +268,13 @@ class Parser:
                 break
             else:
                 loop_statement.add_child(self._parse_statement())
-                self._get_token_by_value(';')
         self._get_token_by_value('end')
         self._get_token_by_value('for')
         return loop_statement
 
     def _parse_return(self):
-        self._next()
         return_statement = ParseTreeNode('return_statement')
+        self._get_token_by_value('return')
         return return_statement
 
     def _parse_destination(self):
@@ -295,7 +314,7 @@ class Parser:
                 destination.add_child(self._parse_expression())
                 self._get_token_by_value(']')
             assignment_statement.add_child(destination)
-            self._get_token_by_value(':=');
+            self._get_token_by_value(':=')
             assignment_statement.add_child(self._parse_expression())
             return assignment_statement
 
@@ -303,8 +322,9 @@ class Parser:
         argument_list = ParseTreeNode('argument_list')
         argument_list.add_child(self._parse_expression())
         if not self._next_token_value_matches(')'):
+            self._get_token_by_value(',')
             argument_list.add_child(self._parse_argument_list())
-        return argument_list 
+        return argument_list
 
     def _parse_expression(self):
         expression = ParseTreeNode('expression')
@@ -336,6 +356,7 @@ class Parser:
         term = ParseTreeNode('term')
         term.add_child(self._parse_factor())
         if self._next_token_value_matches(Parser.TERM_OPS):
+            term.set_token(self._next())
             term.add_child(self._parse_term())
         return term
 
