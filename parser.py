@@ -426,12 +426,16 @@ class Parser:
         token = self._next()
         if not token.value_matches(value):
             report_expected_vs_encountered(str(value),token.value,token.line)
+            while not token.value_matches(value):
+                token = self._next()
         return token
 
     def _get_token_by_type(self,type):
         token = self._next()
         if not token.type_matches(type):
             report_expected_vs_encountered(str(type),token.value,token.line)
+            while not token.value_matches(type):
+                token = self._next()
         return token
 
     def _create_filler_token(value='[filler value]',type='[filler type]',line=-1):
