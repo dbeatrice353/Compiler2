@@ -338,7 +338,7 @@ class Scanner:
             self._discard_current_token()
             return
         else:
-            self.current_token.push(c)
+            self.current_token.push(c.lower())
 
         while True:
             c = self._peek()
@@ -346,7 +346,7 @@ class Scanner:
                 self._save_current_token()
                 return
             elif c.is_letter() or c.is_digit() or c.matches('_'):
-                self.current_token.push(c)
+                self.current_token.push(c.lower())
                 self._step()
             else:
                 self._save_current_token()
