@@ -1,0 +1,49 @@
+
+
+
+program scanner_test is
+
+  string s;
+  integer i;
+  float f;
+  char c;
+  bool b;
+
+begin
+
+  c := 'a';
+  c := 'A';
+  c := '_';
+  c := '.';
+  c := ':';
+  c := ';';
+  c := '0';
+  c := '9';
+  c := '"';
+  c := '';
+
+  s := "test_ok_testing_,:''_;_''_''";
+  s := "'',''..";
+  s := "";
+
+  b := 1;
+  b := 0;
+  b := true;
+  b := false;
+
+  i := 332342342;
+  i := 0;
+  i := 0000000;
+  i := 100;
+
+  f := 0.000000001;
+  f := 3;
+  f := 11111111111.111111111111;
+  f := 123.0;
+  f := 12;
+
+  for(i:=0; i<100)
+    i := i + 1;
+  end for
+
+end program .

@@ -1,0 +1,31 @@
+
+
+
+program test_program is
+
+  string str1;
+  string str2;
+  string temp;
+  bool b1;
+  bool b2;
+
+begin
+
+  b1 := false;
+  b2 := true | false & (1 & 0 & true);
+
+  if(b1 == b2)then
+
+    str1 := "this_is_a_test";
+    str2 := "this_is_another_test";
+    // swap the strings
+    temp := str1;
+    str1 := str2;
+    str2 := temp;
+
+    putString(str1);
+    putString(str2);
+
+  end if
+
+end program.

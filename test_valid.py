@@ -1,6 +1,8 @@
 import os
 
-print "TEST: tests/scanner_valid_1.src"
-os.system("python compiler.py tests/scanner_valid_1.src")
-print "TEST: tests/scanner_valid_2.src"
-os.system("python compiler.py tests/scanner_valid_2.src")
+print "TEST: tests/valid_1.src"
+os.system("python compiler.py tests/valid_1.src")
+print "TEST: tests/valid_2.src"
+os.system("python compiler.py tests/valid_2.src")
+print "TEST: tests/valid_3.src"
+os.system("python compiler.py tests/valid_3.src")

@@ -1,0 +1,54 @@
+
+
+
+program scanner_test is
+
+  string s;
+  integer i;
+  float f;
+  char c;
+  bool b;
+
+begin
+
+  c := 'a ';
+  c := '%';
+  c := '_';
+  c := '&&';
+  c := ':';
+  c := 'test;
+  c := '0';
+  c := h';
+  c := '"';
+  c := '';
+
+  s := "te%st ok _testing$_ ,:' ' ;@@ '' ''";
+  s := " ' ' , ' ' . . . ";
+  s := "!@!";
+
+  b := 1;
+  b := 00!;
+  b := true;
+  b := true;
+
+  i := 33234^2342;
+  i := 0;
+  i := 0#000000;
+  i := 100;
+
+  f := 0.000000001;
+  f := 3;
+  f := 11x111111111.X111111111111;
+  f := 123.0;
+  f := 12;
+
+  3x
+  @_test
+
+end program .
+
+&3
+
+ok
+
+%% % '%'

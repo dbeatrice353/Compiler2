@@ -88,6 +88,9 @@ class Parser:
     def _step(self):
         self._current_token_index += 1
 
+    def found_errors():
+        return self._errors
+
     def parse(self,tokens):
         self.symbol_table = SymbolTable()
         self._tokens = tokens
@@ -223,6 +226,7 @@ class Parser:
             statement.add_child(self._parse_loop())
         elif token.value_matches('return'):
             statement.add_child(self._parse_return())
+            self._get_token_by_value(';')
         else:
             statement.add_child(self._parse_assignment_statement_or_procedure_call())
             self._get_token_by_value(';')

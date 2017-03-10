@@ -1,0 +1,37 @@
+/*
+
+test /* test */
+/// test
+
+*/
+
+program foo_bar_spam is
+
+  integer x[10];
+  integer max;
+
+  procedure get_max(integer array[10] in, integer max out)
+    integer i;
+  begin
+    max := array[0] - 1;
+    for(i := 0; i < 10)
+      if(array[i] > max)then
+        max := array[i];
+        i := i + 1;
+      end if
+    end for
+    return;
+  end procedure
+
+begin
+
+  for(i := 0; i < 10)
+    getChar(x[i]);
+  end for
+
+  get_max(x,max);
+
+  putString("max:");
+  putInteger(max);
+
+end program.

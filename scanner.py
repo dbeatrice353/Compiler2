@@ -38,6 +38,9 @@ class Character:
     def valid_charater(self):
         return self._valid_character
 
+    def to_lowercase(self):
+        self.value = self.value.lower()
+
     def __repr__(self):
         return "%i"%(ord(self.value))
         #return "\'%s\'"%(self.value)
@@ -338,7 +341,8 @@ class Scanner:
             self._discard_current_token()
             return
         else:
-            self.current_token.push(c.lower())
+            c.to_lowercase()
+            self.current_token.push(c)
 
         while True:
             c = self._peek()
@@ -346,7 +350,8 @@ class Scanner:
                 self._save_current_token()
                 return
             elif c.is_letter() or c.is_digit() or c.matches('_'):
-                self.current_token.push(c.lower())
+                c.to_lowercase()
+                self.current_token.push(c)
                 self._step()
             else:
                 self._save_current_token()

@@ -1,0 +1,57 @@
+/* this is a comment this is a comment
+
+this
+
+is a /* comment */ /* this /* is */  a*/
+
+comment */
+
+program program_name is
+
+  global integer foo[100];
+  global float var_name_1738[500];
+  global char c;
+  string string_variable;
+  bool b;
+  integer an_integer_var;
+  float f;
+
+  procedure do_things(string s in, integer x[100] out, float f inout)
+    integer a;
+    bool b[100];
+  begin
+    a := 0;
+    for(a := a + 1;a == (4 + b[0] + b[2]))
+        putInteger(a);
+        putBool(b[a]);
+        if(a < 100 | (b[0] == b[1]))then
+        else
+        end if
+    end for
+  end procedure
+
+begin
+
+  foo[9] := 1/33 + var_name_1738[0] - (3.222 + 23.4332/32.2 + foo[0]*foo[2]);
+  string_variable := "this_is_a_test";
+  string_variable := "testing";
+  do_things("test",foo,f);
+  do_things(string_variable,foo,f);
+
+  if(true == false & false != true)then
+    // this is a comment
+    if(an_integer_var > foo[9] & b != false)then
+      // this is another comment
+      foo[3] := 3 + 4.5;
+      foo[4] := 7/7/7*7*55*234.345*an_integer_variable*foo[4];
+      foo := foo + 33;
+    end if
+  else
+    putString("THIS_IS_A_TEST");
+    putChar("x");
+    putInteger(33333);
+  end if
+
+  putString("hello_world");
+
+end program.
