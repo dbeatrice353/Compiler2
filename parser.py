@@ -88,7 +88,7 @@ class Parser:
     def _step(self):
         self._current_token_index += 1
 
-    def found_errors():
+    def errors():
         return self._errors
 
     def parse(self,tokens):

@@ -1,53 +1,88 @@
 from scanner import Token
 
 
+class ScopeStack:
+    def __init__(self):
+        self.stack = []
+
+    def push(self,scope):
+        self.stack.append(scope)
+
+    def pop(self):
+        if len(self.stack):
+            self.stack.pop()
+
+    def as_string(self):
+        return '/'.join(self.stack)
+
+    def as_list(self):
+        return self.stack
+
+
 
 class SymbolTable:
     def __init__(self):
-        self.symbols = []
+        self._symbols = []
+        self._scope_stack = ScopeStack()
+        self._errors = False
+
+        self._scope_stack.push('main')
 
     def fetch(self,identifier,scope):
-        results = filter( lambda record: record['identifier']==identifier and record['scope']==scope, self.symbols)
+        results = filter( lambda record: record['identifier']==identifier and record['scope']==scope, self._symbols)
         if len(results):
             return results[0]
         else:
             return None
 
+    def errors(self):
+        return self._errors
+
+    def populate(self,node):
+        if node.name_matches('declaration'):
+            child = node.children[0]
+            if child.name_matches('variable_declaration'):
+                symbol = self._create_symbol_from_variable_declaration(child)
+            else: # procedure_declaration
+                symbol = self._create_symbol_from_procedure_declaration(child)
+            if node.token and node.token.value_matches('global'):
+                symbol['global'] = True;
+            self._validate_and_save(symbol)
+        else:
+            for child in node.children:
+                self.populate(child)
+
+    def printable_string(self):
+        string = '%-20s%-20s%-20s%-20s%-20s\n'%('identifier','type','data_type','array_length','scope')
+        for s in self._symbols:
+            string += '%-20s%-20s%-20s%-20s%-20s\n'%(str(s['identifier']),str(s['type']),str(s['data_type']),str(s['array_length']),str(s['scope']))
+        return string
+
     def _new_symbol(self):
         return {
-            'identifier': '',
+            'identifier':'',
             'type': '',
             'scope':'',
             'data_type':'',
             'array_length':None
         }
 
-    def printable_string(self):
-        string = '%-20s%-20s%-20s%-20s%-20s\n'%('identifier','type','data_type','array_length','scope')
-        for s in self.symbols:
-            string += '%-20s%-20s%-20s%-20s%-20s\n'%(str(s['identifier']),str(s['type']),str(s['data_type']),str(s['array_length']),str(s['scope']))
-        return string
+    def _report_error(self, message):
+        print "SYMBOL ERROR: " + message
 
-    def create_symbol_from_declaration(self, declaration, current_scope):
-        if not len(declaration.children):
-            raise Exception("<declaration> node with no child node encoutered.")
+    def _is_valid(self,symbol):
+        return self.fetch(symbol['identifier'],symbol['scope']) == None
+
+    def _validate_and_save(self,symbol):
+        if self._is_valid(symbol):
+            self._symbols.append(symbol)
         else:
-            child = declaration.children[0]
-            if child.name_matches('procedure_declaration'):
-                symbol = self.create_symbol_from_procedure_declaration(child, current_scope)
-            elif child.name_matches('variable_declaration'):
-                symbol = self.create_symbol_from_variable_declaration(child, current_scope)
-            else:
-                raise Exception('%s is not a valid child node for type <declaration>'%(child.name))
-            if declaration.token and declaration.token.value_matches('global'):
-                symbol['global'] = True
-            else:
-                symbol['global'] = False
+            self._report_error("")
+            self._errors = True
 
-        self.symbols.append(symbol)
-
-    def create_symbol_from_variable_declaration(self, variable_declaration, current_scope):
+    def _create_symbol_from_variable_declaration(self, variable_declaration):
         symbol = self._new_symbol()
+        symbol['scope'] = self._scope_stack.as_string()
         symbol['data_type'] = variable_declaration.children[0].token.value
         symbol['identifier'] = variable_declaration.children[1].token.value
         if len(variable_declaration.children) >= 3:
@@ -58,20 +93,23 @@ class SymbolTable:
             symbol['array_length'] = None
         return symbol
 
-    def create_symbol_from_procedure_declaration(self, procedure_declaration, current_scope):
+    def _create_symbol_from_procedure_declaration(self, procedure_declaration):
+        procedure_header = procedure_declaration.children[0]
         symbol = self._new_symbol()
         symbol['type'] = 'procedure'
-        procedure_header = procedure_declaration.children[0]
+        symbol['scope'] = self._scope_stack.as_string()
         symbol['identifier'] = procedure_header.children[0].token.value
+        self._scope_stack.push(symbol['identifier'])
         if len(procedure_header.children) >= 2:
             parameter_list = procedure_header.children[1]
             while True:
                 parameter = parameter_list.children[0]
                 variable_declaration = parameter.children[0]
-                arg_symbol = self.create_symbol_from_variable_declaration(variable_declaration,current_scope)
-                self.symbols.append(arg_symbol)
+                arg_symbol = self._create_symbol_from_variable_declaration(variable_declaration)
+                self._validate_and_save(arg_symbol)
                 if len(parameter_list.children) > 1:
                     parameter_list = parameter_list.children[1]
                 else:
                     break
+        self._scope_stack.pop()
         return symbol
