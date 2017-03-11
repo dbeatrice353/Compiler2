@@ -28,7 +28,21 @@ class SymbolTable:
 
         self._scope_stack.push('main')
 
+
     def fetch(self,identifier,scope):
+        symbol = self._fetch(identifier,scope)
+        if symbol is not None:
+            return symbol
+        else:
+            # a procedure name found in the parent scope counts too.
+            parent_scope = '/'.join(scope.split('/')[:-1])
+            symbol = self._fetch(identifier,parent_scope)
+            if symbol is not None and symbol['type'] == 'procedure':
+                return symbol
+            else:
+                return None
+
+    def _fetch(self,identifier,scope):
         results = filter( lambda record: record['identifier']==identifier and record['scope']==scope, self._symbols)
         if len(results):
             return results[0]
@@ -95,6 +109,7 @@ class SymbolTable:
 
     def _create_symbol_from_procedure_declaration(self, procedure_declaration):
         procedure_header = procedure_declaration.children[0]
+        procedure_body = procedure_declaration.children[1]
         symbol = self._new_symbol()
         symbol['type'] = 'procedure'
         symbol['scope'] = self._scope_stack.as_string()
@@ -111,5 +126,6 @@ class SymbolTable:
                     parameter_list = parameter_list.children[1]
                 else:
                     break
+        self.populate(procedure_body)
         self._scope_stack.pop()
         return symbol

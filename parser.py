@@ -1,9 +1,6 @@
 from scanner import Token
 from symboltable import SymbolTable
 
-#reserved_key_words = ['program','is','begin','procedure','end','global','in','out','inout','integer','bool','char','string','float','if','then','else','loop','return','not','false','true']
-
-
 class ParseTreeNode:
     def __init__(self,name):
         self.name = name
@@ -88,7 +85,7 @@ class Parser:
     def _step(self):
         self._current_token_index += 1
 
-    def errors():
+    def errors(self):
         return self._errors
 
     def parse(self,tokens):

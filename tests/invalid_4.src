@@ -1,0 +1,21 @@
+
+
+
+program scanner_test is
+
+  string of;
+  integer i;
+  float then;
+  char c;
+  bool return;
+
+  procedure proc()
+    char d;
+  begin
+    c := '5';
+    d := 'e';
+  end procedure
+
+begin
+
+end program .

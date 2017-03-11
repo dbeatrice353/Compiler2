@@ -5,6 +5,10 @@ from semanticanalyzer import SemanticAnalyzer
 import sys
 
 
+def print_out(path,data):
+    with open(path,'w') as f:
+        f.write(data)
+
 # get the source file path
 file_name = sys.argv[1]
 
@@ -43,8 +47,3 @@ if not errors:
 
 # generate the LLVM IR
 # ...
-
-
-def print_out(path,data):
-    with open(path,'w') as f:
-        f.write(data)
