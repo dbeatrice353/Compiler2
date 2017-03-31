@@ -9,6 +9,7 @@ program foo_bar_spam is
 
   integer x[10];
   integer max;
+  integer i;
 
   procedure get_max(integer array[10] in, integer max out)
     integer i;

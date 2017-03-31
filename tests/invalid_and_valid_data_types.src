@@ -1,0 +1,41 @@
+
+
+program test_program is
+
+  integer int_var;
+  integer int_array[10];
+  float float_var;
+  float float_array[10];
+  bool bool_var;
+  bool bool_array[10];
+  char char_var;
+  char char_array[10];
+  string string_var;
+
+begin
+
+  int_var := 4;
+  int_var := '4';
+  int_array[0] := 3;
+  int_array[0] := true;
+
+  float_var := 4.567;
+  float_var := "test";
+  float_array[4] := false;
+  float_array[3] := 1;
+  float_array[2] := '4';
+
+  bool_var := true;
+  bool_var := 0;
+  bool_var := '4';
+  bool_array[4] := "test";
+
+  char_var := '3';
+  char_var := 3;
+  char_array[5] := 3 + 5 + float_array[5];
+  char_array[5] := "string";
+
+  string_var := '4';
+  string_var := "test";
+
+end program.

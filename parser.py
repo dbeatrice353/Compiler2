@@ -1,5 +1,6 @@
 from scanner import Token
 from symboltable import SymbolTable
+import constants
 
 class ParseTreeNode:
     def __init__(self,name):
@@ -28,6 +29,11 @@ class ParseTreeNode:
             s += '\n' + child.printable_string(depth + 1)
         return s
 
+    def is_binary_operation(self):
+        return (self.name in constants.BINARY_OPS) and len(self._children)==2
+
+
+
 class ScopeStack:
     def __init__(self, stack=[]):
         self.stack = stack
@@ -45,15 +51,16 @@ class ScopeStack:
     def as_list(self):
         return self.stack
 
+
 class Parser:
 
-    DATA_TYPES = ['integer','float','string','char','bool']
-    DECLARATION_INITS = ['global','procedure'] + DATA_TYPES
-    PARAM_DIRECTIONS = ['in','out','inout']
-    EXPRESSION_OPS = ['&','|']
-    ARITH_OPS = ['+','-']
-    RELATION_OPS = ['<','>=','<=','>','==','!=']
-    TERM_OPS = ['*','/']
+    DATA_TYPES = constants.DATA_TYPES
+    DECLARATION_INITS = constants.DECLARATION_INITS
+    PARAM_DIRECTIONS = constants.PARAM_DIRECTIONS
+    EXPRESSION_OPS = constants.EXPRESSION_OPS
+    ARITH_OPS = constants.ARITH_OPS
+    RELATION_OPS = constants.RELATION_OPS
+    TERM_OPS = constants.TERM_OPS
 
     def __init__(self):
         self._tokens = []
@@ -290,7 +297,7 @@ class Parser:
     def _parse_assignment_statement(self):
         assignment_statement = ParseTreeNode('assignment_statement')
         assignment_statement.add_child(self._parse_destination())
-        self._get_token_by_value(':=')
+        assignment_statement.set_token(self._get_token_by_value(':='))
         assignment_statement.add_child(self._parse_expression())
         return assignment_statement
 
@@ -315,7 +322,7 @@ class Parser:
                 destination.add_child(self._parse_expression())
                 self._get_token_by_value(']')
             assignment_statement.add_child(destination)
-            self._get_token_by_value(':=')
+            assignment_statement.set_token(self._get_token_by_value(':='))
             assignment_statement.add_child(self._parse_expression())
             return assignment_statement
 
