@@ -30,7 +30,10 @@ class ParseTreeNode:
         return s
 
     def is_binary_operation(self):
-        return (self.name in constants.BINARY_OPS) and len(self._children)==2
+        if self.token is not None:
+            return (self.token.value in constants.BINARY_OPS) and len(self.children)==2
+        else:
+            return False
 
 
 

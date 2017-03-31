@@ -33,9 +33,15 @@ begin
   char_var := '3';
   char_var := 3;
   char_array[5] := 3 + 5 + float_array[5];
-  char_array[5] := "string";
+  char_array[5 + '4'] := "string";
 
   string_var := '4';
   string_var := "test";
+
+  int_var := 4 * '5'/(char_array["test"/3.14 + 'f'] + true);
+  float_var := 3.45 == false;
+  int_var := int_array[int_array[int_var]];
+
+  bool_var := true/false;
 
 end program.

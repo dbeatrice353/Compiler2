@@ -62,8 +62,8 @@ class SemanticAnalyzer:
             return datatype2
         else:
             line = node.token.line
-            report_type_missmatch(datatype0,datatype1,line)
-            return self._get_likely_return_type(operator)
+            report_type_error(datatype0,datatype1,operator,line)
+            return "[undefined due to previous error]"
 
     def _handle_identifier(self, node):
         scope = self._scope_stack.as_string()
@@ -83,6 +83,8 @@ class SemanticAnalyzer:
             return 'integer'
 
     def _check_data_types(self, node):
+        #if node.token is not None:
+        #    print "DEBUG: " + node.token.value + " " + str(node.token.line)
         return_value = None
         if node.name_matches('procedure_declaration'):
             header = node.children[0]
@@ -135,7 +137,11 @@ class SemanticAnalyzer:
             else:
                 return None
         elif operator in SemanticAnalyzer.TERM_OPS:
-            return 'integer'
+            valid_types = ['float','integer']
+            if datatype1 in valid_types and datatype2 in valid_types:
+                return True
+            else:
+                return False
         elif operator == ':=':
             if datatype1 == datatype2:
                 return True
@@ -169,6 +175,6 @@ class SemanticAnalyzer:
 def report_error(message,line):
     print "SEMANTIC ERROR (line %s): %s"%(str(line), message)
 
-def report_type_missmatch(type_1, type_2, line):
-    message = "datatype missmatch between \'%s\' and \'%s\'."%(type_1,type_2)
+def report_type_error(type_1, type_2, operator, line):
+    message = "datatype error: %s %s %s."%(type_1,operator,type_2)
     report_error(message,line)
