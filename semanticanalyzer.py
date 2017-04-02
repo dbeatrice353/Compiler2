@@ -52,18 +52,24 @@ class SemanticAnalyzer:
         if node.name_matches('procedure_declaration'):
             self._scope_stack.pop()
 
-
     def _handle_binary_operation(self, node):
         operator = node.token.value
-        datatype0 = self._check_data_types(node.children[0])
-        datatype1 = self._check_data_types(node.children[1])
-        datatype2 = self._get_return_type(datatype0,datatype1,operator)
-        if datatype2:
-            return datatype2
+        datatype1 = self._check_data_types(node.children[0])
+        datatype2 = self._check_data_types(node.children[1])
+        datatype3 = self._get_return_type(datatype1,datatype2,operator)
+        if datatype3 is not None:
+            return datatype3
         else:
             line = node.token.line
-            report_type_error(datatype0,datatype1,operator,line)
+            report_type_error(datatype1,datatype2,operator,line)
             return "[undefined due to previous error]"
+
+    def _handle_assignment_statement(self,node):
+        datatype1 = self._check_data_types(node.children[0])
+        datatype2 = self._check_data_types(node.children[1])
+        if not self._valid_assignment_types(datatype1,datatype2):
+            line = node.token.line
+            report_type_error(datatype1,datatype2,':=',line)
 
     def _handle_identifier(self, node):
         scope = self._scope_stack.as_string()
@@ -91,8 +97,10 @@ class SemanticAnalyzer:
             identifier = header.children[0]
             self._scope_stack.push(identifier.token.value)
         else:
-            if node.is_binary_operation() or node.name_matches("assignment_statement"):
+            if node.is_binary_operation():
                 return_value = self._handle_binary_operation(node)
+            elif node.name_matches("assignment_statement"):
+                self._handle_assignment_statement(node)
             elif node.name_matches('identifier'):
                 return_value = self._handle_identifier(node)
             elif node.name_matches('number'):
@@ -110,6 +118,8 @@ class SemanticAnalyzer:
                     if result is not None and not type_aquired:
                         return_value = result
                         type_aquired = True
+        if node.name_matches('procedure_declaration'):
+            self._scope_stack.pop()
         return return_value
 
 
@@ -138,25 +148,28 @@ class SemanticAnalyzer:
                 return None
         elif operator in SemanticAnalyzer.TERM_OPS:
             valid_types = ['float','integer']
-            if datatype1 in valid_types and datatype2 in valid_types:
-                return True
+            if datatype1 == datatype2 == 'integer':
+                return 'integer'
+            elif datatype1 in valid_types and datatype2 in valid_types:
+                return 'float'
             else:
-                return False
-        elif operator == ':=':
-            if datatype1 == datatype2:
-                return True
-            elif datatype1 == 'integer' and datatype2 == 'float':
-                return True
-            elif datatype1 == 'float' and datatype2 == 'integer':
-                return True
-            elif datatype1 == 'bool' and datatype2 == 'integer':
-                return True
-            elif datatype1 == 'integer' and datatype2 == 'bool':
-                return True
-            else:
-                return False
+                return None
         else:
             raise Exception('Not a valid binary operator: %s'%(operator))
+
+    def _valid_assignment_types(self,datatype1,datatype2):
+        if datatype1 == datatype2:
+            return True
+        elif datatype1 == 'integer' and datatype2 == 'float':
+            return True
+        elif datatype1 == 'float' and datatype2 == 'integer':
+            return True
+        elif datatype1 == 'bool' and datatype2 == 'integer':
+            return True
+        elif datatype1 == 'integer' and datatype2 == 'bool':
+            return True
+        else:
+            return False
 
     def _get_likely_return_type(self,operator):
         if operator in SemanticAnalyzer.EXPRESSION_OPS:
