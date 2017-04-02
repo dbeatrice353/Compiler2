@@ -43,7 +43,7 @@ begin
     if(an_integer_var > foo[9] & b != false)then
       // this is another comment
       foo[3] := 3 + 4.5;
-      foo[4] := 7/7/7*7*55*234.345*an_integer_variable*foo[4];
+      foo[4] := 7/7/7*7*55*234.345*an_integer_var*foo[4];
       foo := foo + 33;
     end if
   else
