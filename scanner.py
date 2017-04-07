@@ -98,6 +98,9 @@ class Token:
     def as_string(self):
         return "<%s, \'%s\', %i>"%(self.type,self.value,self.line)
 
+    def is_literal(self):
+        return self.type in ["CHARACTER","NUMBER","STRING","BOOLEAN"] or self.value in ['true','false']
+
     def __str__(self):
         return self.as_string()
 
