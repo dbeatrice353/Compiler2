@@ -23,10 +23,95 @@ class SemanticAnalyzer:
         return self._errors
 
     def analyze(self,parse_tree,symbol_table):
+        program_body = parse_tree.children[1]
         self._symbol_table = symbol_table
         self._check_for_valid_identifiers(parse_tree)
-        self._check_for_scope_errors(parse_tree.children[1]) # skip the program name
-        self._check_data_types(parse_tree.children[1]) # skip the program name
+        self._check_for_scope_errors(program_body)
+        self._check_data_types(program_body)
+        self._check_arguments(program_body)
+
+
+    def _scope_stack_push(self,node):
+        if node.name_matches('procedure_declaration'):
+            header = node.children[0]
+            identifier = header.children[0]
+            self._scope_stack.push(identifier.token.value)
+
+    def _scope_stack_pop(self,node):
+        if node.name_matches('procedure_declaration'):
+            self._scope_stack.pop()
+
+    def _check_arguments(self,node):
+        self._scope_stack_push(node)
+        if node.name_matches('procedure_call'):
+            identifier = node.children[0].token.value
+            line = node.children[0].token.line
+            given_args = self._get_given_args(node)
+            expected_args = self._symbol_table.get_expected_arguments(identifier)
+            self._compare_expected_and_given_args(expected_args,given_args,line)
+        else:
+            for child in node.children:
+                self._check_arguments(child)
+        self._scope_stack_pop(node)
+
+    def _compare_expected_and_given_args(self,expected,given,line):
+        given_len = len(given)
+        expected_len = len(expected)
+
+        for i in range(min(given_len,expected_len)):
+            if given[i]['type'] != expected[i]['data_type']:
+                print "type missmatch"
+            if given[i]['dimension'] != expected[i]['array_length']:
+                print "dim missmatch"
+            if given[i]['literal'] and expected[i]['direction'] != 'in':
+                print "byVal error"
+
+        if given_len < expected_len:
+            report_error("Too few arguments in procedure call.",line)
+        elif given_len > expected_len:
+            report_error("Too many arguments in procedure call.",line)
+            print given
+            print expected
+        else:
+            pass
+
+    def _get_dimension(self,node):
+        dimensions = []
+        if len(node.children):
+            for child in node.children:
+                dim = self._get_dimension(child)
+                if dim != 1:
+                    dimensions.append(dim)
+            if len(set(dimensions)) != 1:
+                return 'undefined'
+            else:
+                return dimensions[0]
+        else:
+            symbol = self._symbol_table.fetch(node.token.value,self._scope_stack.as_string())
+
+    def _check_for_literal(self,node):
+        if len(node.children):
+            return self._check_for_literal(node.children[0])
+        else:
+            return node.token.is_literal()
+
+    def _get_given_args(self, procedure_call):
+        given_args = []
+        if len(procedure_call.children) == 2:
+            arg_list = procedure_call.children[1]
+            while True:
+                arg_node = arg_list.children[0]
+                arg = {
+                    'type': self._check_data_types(arg_node),
+                    'dimension': self._get_dimension(arg_node),
+                    'literal': self._check_for_literal(arg_node)
+                }
+                given_args.append(arg)
+                if len(arg_list.children) == 2:
+                    arg_list = arg_list.children[1]
+                else:
+                    break
+        return given_args
 
     def _check_for_valid_identifiers(self, node):
         if node.name_matches('identifier'):
@@ -37,10 +122,10 @@ class SemanticAnalyzer:
                 self._check_for_valid_identifiers(child)
 
     def _check_for_scope_errors(self,node):
+        self._scope_stack_push(node)
         if node.name_matches('procedure_declaration'):
             header = node.children[0]
             identifier = header.children[0]
-            self._scope_stack.push(identifier.token.value)
         elif node.name_matches('identifier'):
             value = node.token.value
             line = node.token.line
@@ -49,8 +134,7 @@ class SemanticAnalyzer:
                 report_error("Identifer, \'%s\' not found in current scope"%(value),line)
         for child in node.children:
             self._check_for_scope_errors(child)
-        if node.name_matches('procedure_declaration'):
-            self._scope_stack.pop()
+        self._scope_stack_pop(node)
 
     def _handle_binary_operation(self, node):
         operator = node.token.value

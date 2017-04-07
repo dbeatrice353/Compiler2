@@ -1,4 +1,5 @@
 from scanner import Token
+from runtimeprocedures import SYMBOL_TABLE_ENTRIES
 
 
 class ScopeStack:
@@ -27,6 +28,7 @@ class SymbolTable:
         self._errors = False
 
         self._scope_stack.push('main')
+        self._symbols += SYMBOL_TABLE_ENTRIES
 
 
     def fetch(self,identifier,scope):
@@ -76,6 +78,10 @@ class SymbolTable:
         for s in self._symbols:
             string += '%-20s%-20s%-20s%-20s%-20s%-20s%-20s\n'%(str(s['identifier']),str(s['type']),str(s['data_type']),str(s['array_length']),str(s['scope']),str(s['is_argument']),str(s['direction']))
         return string
+
+    def get_expected_arguments(self,identifier):
+        return filter( lambda record: record['scope']=='main/'+identifier and \
+                                      record['is_argument']==True, self._symbols)
 
     def _new_symbol(self):
         return {
