@@ -48,7 +48,7 @@ begin
     end if
   else
     putString("THIS_IS_A_TEST");
-    putChar("x");
+    putChar('x');
     putInteger(33333);
   end if
 

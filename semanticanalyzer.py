@@ -60,11 +60,15 @@ class SemanticAnalyzer:
 
         for i in range(min(given_len,expected_len)):
             if given[i]['type'] != expected[i]['data_type']:
-                print "type missmatch"
+                report_error("Argument type missmatch between %s and %s"%(expected[i]['data_type'],given[i]['type']),line)
+            """
             if given[i]['dimension'] != expected[i]['array_length']:
+                print expected[i]['array_length']
+                print given[i]['dimension']
                 print "dim missmatch"
+            """
             if given[i]['literal'] and expected[i]['direction'] != 'in':
-                print "byVal error"
+                report_error("Literal, \'%s\' was used as an argument where a variable is required."%(given[i]['type'],expected[i]['data_type']),line)
 
         if given_len < expected_len:
             report_error("Too few arguments in procedure call.",line)
@@ -76,18 +80,7 @@ class SemanticAnalyzer:
             pass
 
     def _get_dimension(self,node):
-        dimensions = []
-        if len(node.children):
-            for child in node.children:
-                dim = self._get_dimension(child)
-                if dim != 1:
-                    dimensions.append(dim)
-            if len(set(dimensions)) != 1:
-                return 'undefined'
-            else:
-                return dimensions[0]
-        else:
-            symbol = self._symbol_table.fetch(node.token.value,self._scope_stack.as_string())
+        pass
 
     def _check_for_literal(self,node):
         if len(node.children):
@@ -173,8 +166,6 @@ class SemanticAnalyzer:
             return 'integer'
 
     def _check_data_types(self, node):
-        #if node.token is not None:
-        #    print "DEBUG: " + node.token.value + " " + str(node.token.line)
         return_value = None
         if node.name_matches('procedure_declaration'):
             header = node.children[0]

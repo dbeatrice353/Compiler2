@@ -27,7 +27,7 @@ program foo_bar_spam is
 begin
 
   for(i := 0; i < 10)
-    getChar(x[i]);
+    getInteger(x[i]);
   end for
 
   get_max(x,max);
