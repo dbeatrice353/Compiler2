@@ -1,0 +1,20 @@
+
+
+program test_program is
+
+  integer v;
+  integer A1[10];
+  integer A2[20];
+  integer A3[10];
+
+begin
+
+  A3 := A1 + A2;
+  A3 := A3 + A1;
+  A2 := A2 + v;
+  A1 := 6;
+  A1[0] := A1 + 4;
+  v := A1[0];
+  v := A3;
+
+end program.

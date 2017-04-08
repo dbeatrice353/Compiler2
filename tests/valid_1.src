@@ -21,7 +21,7 @@ program program_name is
     bool b[100];
   begin
     a := 0;
-    for(a := a + 1;a == (4 + b[0] + b[2]))
+    for(a := a + 1;a == (4 + 3))
         putInteger(a);
         putBool(b[a]);
         if(a < 100 | (b[0] == b[1]))then

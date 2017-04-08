@@ -44,6 +44,7 @@ if not errors:
 if not errors:
     semantic_analyzer.analyze(parse_tree,symbol_table)
     errors = errors or semantic_analyzer.errors()
+    print_out(file_name+'.operations.temp',semantic_analyzer.printable_string())
 
 # generate the LLVM IR
 # ...

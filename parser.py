@@ -35,6 +35,9 @@ class ParseTreeNode:
         else:
             return False
 
+    def is_literal(self):
+        return self.token is not None and self.token.is_literal()
+
 
 
 class ScopeStack:
@@ -72,7 +75,7 @@ class Parser:
         self.symbol_table = None
         self.root = None
 
-    def _error(self):
+    def _register_error(self):
         self._errors = True
 
     def _print_tree_to_terminal(self):
@@ -87,6 +90,7 @@ class Parser:
     def _peek(self):
         if self._current_token_index >= len(self._tokens):
             report_unexpected_eof()
+            self._register_error()
             exit()
         else:
             token = self._tokens[self._current_token_index]
@@ -148,6 +152,7 @@ class Parser:
             self._get_token_by_value(';')
         else:
             report_expected_vs_encountered(str(Parser.DATA_TYPES)+" or 'procedure'",self._next())
+            self._register_error()
         return declaration
 
     def _parse_procedure_declaration(self):
@@ -221,6 +226,7 @@ class Parser:
         else:
             token = self._next()
             report_expected_vs_encountered(str(Parser.DATA_TYPES), token.value, token.line)
+            self._register_error()
             type_mark.set_token(Token(value='[filler]',type='WORD',line=token.line))
         return type_mark
 
@@ -423,8 +429,7 @@ class Parser:
         else:
             token = self._next()
             report_expected_vs_encountered('[identifier]', token.value, token.line)
-            #filler = self._create_filler_token(value='[identifier]',type='WORD')
-            #identifier.set_token(filler)
+            self._register_error()
         return identifier
 
     def _next_token_value_matches(self,value):
@@ -437,6 +442,7 @@ class Parser:
         token = self._next()
         if not token.value_matches(value):
             report_expected_vs_encountered(str(value),token.value,token.line)
+            self._register_error()
             while not token.value_matches(value):
                 token = self._next()
         return token
@@ -445,6 +451,7 @@ class Parser:
         token = self._next()
         if not token.type_matches(type):
             report_expected_vs_encountered(str(type),token.value,token.line)
+            self._register_error()
             while not token.value_matches(type):
                 token = self._next()
         return token

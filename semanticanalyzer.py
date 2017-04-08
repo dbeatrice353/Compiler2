@@ -16,20 +16,42 @@ class SemanticAnalyzer:
         self._symbol_table = None
         self._errors = False
         self._scope_stack = ScopeStack()
+        self._operation_records = []
+        self._operation_record_counter = 0;
 
         self._scope_stack.push('main')
 
     def errors(self):
         return self._errors
 
+    def printable_string(self):
+        if len(self._operation_records):
+            headers = self._operation_records[0].keys()
+            string = ''.join(map(lambda x: '%-15s'%x, headers)) + '\n'
+            for record in self._operation_records:
+                values = map(lambda x: str(record[x]),headers)
+                string += ''.join(map(lambda x: '%-15s'%x, values)) + '\n'
+            return string
+        else:
+            return 'no records'
+
+    def print_argument_list_records(self):
+        for record in self._argument_list_records:
+            print record
+
     def analyze(self,parse_tree,symbol_table):
+        self._operation_index_counter = 0
         program_body = parse_tree.children[1]
         self._symbol_table = symbol_table
         self._check_for_valid_identifiers(parse_tree)
         self._check_for_scope_errors(program_body)
-        self._check_data_types(program_body)
-        self._check_arguments(program_body)
+        self._gather_operation_records(program_body)
+        self._check_for_type_errors()
 
+    def _next_operation_record_id(self):
+        temp = self._operation_record_counter
+        self._operation_record_counter += 1
+        return temp
 
     def _scope_stack_push(self,node):
         if node.name_matches('procedure_declaration'):
@@ -41,70 +63,155 @@ class SemanticAnalyzer:
         if node.name_matches('procedure_declaration'):
             self._scope_stack.pop()
 
-    def _check_arguments(self,node):
+    def _check_for_type_errors(self):
+        type_errors = filter(lambda r: r['dtype']==None and r['op1_dtype']!=None and r['op2_dtype']!=None, self._operation_records)
+        for each in type_errors:
+            report_type_error(each['op1_dtype'], each['op2_dtype'], each['operator'], each['line'])
+
+    def _check_for_dimensional_errors(self):
+        pass #dim_errors = filter(lambda r: r[])
+
+    def _gather_operation_records(self, node):
         self._scope_stack_push(node)
-        if node.name_matches('procedure_call'):
-            identifier = node.children[0].token.value
-            line = node.children[0].token.line
-            given_args = self._get_given_args(node)
-            expected_args = self._symbol_table.get_expected_arguments(identifier)
-            self._compare_expected_and_given_args(expected_args,given_args,line)
+        if node.name_matches('assignemnt_statment') or node.name_matches('expression'):
+            self._create_operation_records(node,False)
         else:
             for child in node.children:
-                self._check_arguments(child)
+                self._gather_operation_records(child)
         self._scope_stack_pop(node)
 
-    def _compare_expected_and_given_args(self,expected,given,line):
-        given_len = len(given)
-        expected_len = len(expected)
-
-        for i in range(min(given_len,expected_len)):
-            if given[i]['type'] != expected[i]['data_type']:
-                report_error("Argument type missmatch between %s and %s"%(expected[i]['data_type'],given[i]['type']),line)
-            """
-            if given[i]['dimension'] != expected[i]['array_length']:
-                print expected[i]['array_length']
-                print given[i]['dimension']
-                print "dim missmatch"
-            """
-            if given[i]['literal'] and expected[i]['direction'] != 'in':
-                report_error("Literal, \'%s\' was used as an argument where a variable is required."%(given[i]['type'],expected[i]['data_type']),line)
-
-        if given_len < expected_len:
-            report_error("Too few arguments in procedure call.",line)
-        elif given_len > expected_len:
-            report_error("Too many arguments in procedure call.",line)
-            print given
-            print expected
+    def _create_operation_records(self,node,in_tree_flag):
+        if node.is_binary_operation() or node.name_matches('assignment_statement'):
+            record = self._create_record_from_binary_operation(node,in_tree_flag)
+            self._operation_records.append(record)
+            return record
+        elif node.is_literal():
+            record = self._create_record_from_operand(node,False,in_tree_flag)
+            self._operation_records.append(record)
+            return record
+        elif node.name_matches('name'):
+            identifier = node.children[0]
+            if len(node.children) == 2: # its an indexed array
+                array_index_expression = node.children[1]
+                self._create_operation_records(array_index_expression,False)
+                indexed_flag = True
+            else:
+                indexed_flag = False
+            record = self._create_record_from_operand(identifier,indexed_flag,in_tree_flag)
+            self._operation_records.append(record)
+            return record
         else:
-            pass
+            if len(node.children) == 1:
+                return self._create_operation_records(node.children[0],in_tree_flag)
+            else:
+                raise Exception("PROBLEM")
 
-    def _get_dimension(self,node):
-        pass
-
-    def _check_for_literal(self,node):
-        if len(node.children):
-            return self._check_for_literal(node.children[0])
-        else:
-            return node.token.is_literal()
-
-    def _get_given_args(self, procedure_call):
-        given_args = []
-        if len(procedure_call.children) == 2:
-            arg_list = procedure_call.children[1]
-            while True:
-                arg_node = arg_list.children[0]
-                arg = {
-                    'type': self._check_data_types(arg_node),
-                    'dimension': self._get_dimension(arg_node),
-                    'literal': self._check_for_literal(arg_node)
+    def _create_record_from_binary_operation(self,node,in_tree_flag):
+        op1_record = self._create_operation_records(node.children[0],True)
+        op2_record = self._create_operation_records(node.children[1],True)
+        operator = node.token.value
+        return {
+                'id': self._next_operation_record_id(),
+                'line': node.token.line,
+                'operator': node.token.value,
+                'op1_dtype': op1_record['dtype'],
+                'op2_dtype': op2_record['dtype'],
+                'op1_dim': op1_record['dimension'],
+                'op2_dim': op2_record['dimension'],
+                'dtype': self._get_resulting_datatype(op1_record,op2_record,operator),
+                'dimension': self._get_resulting_dimension(op1_record,op2_record,operator),
+                'is_vector': op1_record['is_vector'] or op2_record['is_vector'],
+                'scope': self._scope_stack.as_string(),
+                'is_root': in_tree_flag
                 }
-                given_args.append(arg)
-                if len(arg_list.children) == 2:
-                    arg_list = arg_list.children[1]
+
+    def _create_record_from_operand(self,node,indexed_flag,in_tree_flag):
+        scope = self._scope_stack.as_string()
+        if node.name_matches('identifier'):
+            symbol = self._symbol_table.fetch(node.token.value,scope)
+            datatype = symbol['data_type']
+            dimension = symbol['array_length']
+            is_vector = symbol['array_length'] != None and not indexed_flag
+        else:
+            datatype = self._get_datatype_from_literal(node)
+            dimension = None
+            is_vector = False
+        return {
+                'id': self._next_operation_record_id(),
+                'line': node.token.line,
+                'operator': None,
+                'op1_dtype': None,
+                'op2_dtype': None,
+                'op1_dim': None,
+                'op2_dim': None,
+                'dtype': datatype,
+                'dimension': dimension,
+                'scope': scope,
+                'is_vector': is_vector,
+                'is_root': in_tree_flag
+                }
+
+    def _get_datatype_from_literal(self,node):
+        if node.name_matches('string'):
+            return 'string'
+        elif node.name_matches('character'):
+            return 'char'
+        elif node.name_matches('number'):
+            value = node.token.value
+            if '.' in value:
+                return 'float'
+            else:
+                return 'integer'
+        else:
+            return 'bool'
+
+    def _get_resulting_datatype(self, op1, op2, operator):
+        type1 = op1['dtype']
+        type2 = op2['dtype']
+        if operator in SemanticAnalyzer.EXPRESSION_OPS:
+            valid_types = ['bool','integer']
+            if type1 in valid_types and type2 in valid_types:
+                return 'bool'
+            else:
+                return None
+        elif operator in SemanticAnalyzer.ARITH_OPS:
+            valid_types = ['float','integer']
+            if type1 in valid_types and type2 in valid_types:
+                if type1 == 'float' or type2 == 'float':
+                    return 'float'
                 else:
-                    break
-        return given_args
+                    return 'integer'
+            else:
+                return None
+        elif operator in SemanticAnalyzer.RELATION_OPS:
+            if type1 == 'bool' and type2 == 'bool':
+                return 'bool'
+            elif type1 == 'integer' and type2 == 'integer':
+                return 'bool'
+            else:
+                return None
+        elif operator in SemanticAnalyzer.TERM_OPS:
+            valid_types = ['float','integer']
+            if type1 == type2 == 'integer':
+                return 'integer'
+            elif type1 in valid_types and type2 in valid_types:
+                return 'float'
+            else:
+                return None
+        else:
+            raise Exception('Not a valid binary operator: %s'%(operator))
+
+    def _get_resulting_dimension(self, op1, op2, operator):
+        dim1 = op1['dimension']
+        dim2 = op1['dimension']
+        if op1['is_vector'] and op2['is_vector']:
+            if dim1 == dim2:
+                return dim1
+            else:
+                report_error('dim missmatch')
+                return max(dim1,dim2)
+        else:
+            return max(dim1,dim2)
 
     def _check_for_valid_identifiers(self, node):
         if node.name_matches('identifier'):
@@ -128,137 +235,6 @@ class SemanticAnalyzer:
         for child in node.children:
             self._check_for_scope_errors(child)
         self._scope_stack_pop(node)
-
-    def _handle_binary_operation(self, node):
-        operator = node.token.value
-        datatype1 = self._check_data_types(node.children[0])
-        datatype2 = self._check_data_types(node.children[1])
-        datatype3 = self._get_return_type(datatype1,datatype2,operator)
-        if datatype3 is not None:
-            return datatype3
-        else:
-            line = node.token.line
-            report_type_error(datatype1,datatype2,operator,line)
-            return "[undefined due to previous error]"
-
-    def _handle_assignment_statement(self,node):
-        datatype1 = self._check_data_types(node.children[0])
-        datatype2 = self._check_data_types(node.children[1])
-        if not self._valid_assignment_types(datatype1,datatype2):
-            line = node.token.line
-            report_type_error(datatype1,datatype2,':=',line)
-
-    def _handle_identifier(self, node):
-        scope = self._scope_stack.as_string()
-        name = node.token.value
-        symbol = self._symbol_table.fetch(name,scope)
-        if symbol is not None:
-            if len(node.children) == 1:
-                self._check_data_types(node.children[0])
-            return symbol['data_type']
-        else:
-            return 'undefined'
-
-    def _handle_number(self, node):
-        if '.' in node.token.value:
-            return 'float'
-        else:
-            return 'integer'
-
-    def _check_data_types(self, node):
-        return_value = None
-        if node.name_matches('procedure_declaration'):
-            header = node.children[0]
-            identifier = header.children[0]
-            self._scope_stack.push(identifier.token.value)
-        else:
-            if node.is_binary_operation():
-                return_value = self._handle_binary_operation(node)
-            elif node.name_matches("assignment_statement"):
-                self._handle_assignment_statement(node)
-            elif node.name_matches('identifier'):
-                return_value = self._handle_identifier(node)
-            elif node.name_matches('number'):
-                return_value = self._handle_number(node)
-            elif node.name_matches('string'):
-                return_value = 'string'
-            elif node.name_matches('character'):
-                return_value = 'char'
-            elif node.token and node.token.value_matches(['true','false']):
-                return_value = 'bool'
-            else:
-                type_aquired = False
-                for child in node.children:
-                    result = self._check_data_types(child)
-                    if result is not None and not type_aquired:
-                        return_value = result
-                        type_aquired = True
-        if node.name_matches('procedure_declaration'):
-            self._scope_stack.pop()
-        return return_value
-
-
-    def _get_return_type(self,datatype1,datatype2,operator):
-        if operator in SemanticAnalyzer.EXPRESSION_OPS:
-            valid_types = ['bool','integer']
-            if datatype1 in valid_types and datatype2 in valid_types:
-                return 'bool'
-            else:
-                return None
-        elif operator in SemanticAnalyzer.ARITH_OPS:
-            valid_types = ['float','integer']
-            if datatype1 in valid_types and datatype2 in valid_types:
-                if datatype1 == 'float' or datatype2 == 'float':
-                    return 'float'
-                else:
-                    return 'integer'
-            else:
-                return None
-        elif operator in SemanticAnalyzer.RELATION_OPS:
-            if datatype1 == 'bool' and datatype2 == 'bool':
-                return 'bool'
-            elif datatype1 == 'integer' and datatype2 == 'integer':
-                return 'bool'
-            else:
-                return None
-        elif operator in SemanticAnalyzer.TERM_OPS:
-            valid_types = ['float','integer']
-            if datatype1 == datatype2 == 'integer':
-                return 'integer'
-            elif datatype1 in valid_types and datatype2 in valid_types:
-                return 'float'
-            else:
-                return None
-        else:
-            raise Exception('Not a valid binary operator: %s'%(operator))
-
-    def _valid_assignment_types(self,datatype1,datatype2):
-        if datatype1 == datatype2:
-            return True
-        elif datatype1 == 'integer' and datatype2 == 'float':
-            return True
-        elif datatype1 == 'float' and datatype2 == 'integer':
-            return True
-        elif datatype1 == 'bool' and datatype2 == 'integer':
-            return True
-        elif datatype1 == 'integer' and datatype2 == 'bool':
-            return True
-        else:
-            return False
-
-    def _get_likely_return_type(self,operator):
-        if operator in SemanticAnalyzer.EXPRESSION_OPS:
-            return 'bool'
-        elif operator in SemanticAnalyzer.ARITH_OPS:
-            return 'integer'
-        elif operator in SemanticAnalyzer.RELATION_OPS:
-            return 'bool'
-        elif operator in SemanticAnalyzer.TERM_OPS:
-            return 'integer'
-        elif operator == ':=':
-            return "[doesn't matter]"
-        else:
-            raise Exception('Not a valid binary operator: %s'%(operator))
 
 def report_error(message,line):
     print "SEMANTIC ERROR (line %s): %s"%(str(line), message)
