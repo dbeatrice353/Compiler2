@@ -14,7 +14,7 @@ begin
   A2 := A2 + v;
   A1 := 6;
   A1[0] := A1 + 4;
-  v := A1[0];
+  v := A1[12.3 + 5];
   v := A3;
 
 end program.

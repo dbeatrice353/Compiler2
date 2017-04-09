@@ -48,6 +48,7 @@ class SemanticAnalyzer:
         self._gather_operation_records(program_body)
         self._check_for_type_errors()
         self._check_for_dimensional_errors()
+        self._check_array_index_types()
 
     def _next_operation_record_id(self):
         temp = self._operation_record_counter
@@ -75,45 +76,54 @@ class SemanticAnalyzer:
         for each in expression_errors + assignment_errors:
             report_dimensional_error(each['op1_dim'], each['op2_dim'], each['line'])
 
+    def _check_array_index_types(self):
+        index_type_errors = filter(lambda r: r['is_index'] and r['is_root'] and r['dtype'] != 'integer',self._operation_records)
+        for each in index_type_errors:
+            report_error("array index must be of integer type",each['line'])
+
     def _gather_operation_records(self, node):
         self._scope_stack_push(node)
         if node.name_matches('assignment_statement') or node.name_matches('expression'):
-            self._create_operation_records(node,False)
+            context = {'indexed':False, 'is_index':False, 'is_root':True}
+            self._create_operation_records(node,context)
         else:
             for child in node.children:
                 self._gather_operation_records(child)
         self._scope_stack_pop(node)
 
-    def _create_operation_records(self,node,in_tree_flag):
+    def _create_operation_records(self,node,context):
         if node.is_binary_operation() or node.name_matches('assignment_statement'):
-            record = self._create_record_from_binary_operation(node,in_tree_flag)
+            record = self._create_record_from_binary_operation(node,context)
             self._operation_records.append(record)
             return record
         elif node.is_literal():
-            record = self._create_record_from_operand(node,False,in_tree_flag)
+            record = self._create_record_from_operand(node,context)
             self._operation_records.append(record)
             return record
         elif node.name_matches('name') or node.name_matches('destination'):
             identifier = node.children[0]
             if len(node.children) == 2: # its an indexed array
                 array_index_expression = node.children[1]
-                self._create_operation_records(array_index_expression,False)
-                indexed_flag = True
-            else:
-                indexed_flag = False
-            record = self._create_record_from_operand(identifier,indexed_flag,in_tree_flag)
+                context['is_index'] = True
+                context['is_root'] = True
+                self._create_operation_records(array_index_expression,context)
+                context['is_index'] = False
+                context['indexed'] = True
+            record = self._create_record_from_operand(identifier,context)
             self._operation_records.append(record)
             return record
         else:
             if len(node.children) == 1:
-                return self._create_operation_records(node.children[0],in_tree_flag)
+                return self._create_operation_records(node.children[0],context)
             else:
                 print node.name
                 raise Exception("PROBLEM")
 
-    def _create_record_from_binary_operation(self,node,in_tree_flag):
-        op1_record = self._create_operation_records(node.children[0],True)
-        op2_record = self._create_operation_records(node.children[1],True)
+    def _create_record_from_binary_operation(self,node,context):
+        is_root = context['is_root']
+        context['is_root'] = False
+        op1_record = self._create_operation_records(node.children[0],context)
+        op2_record = self._create_operation_records(node.children[1],context)
         operator = node.token.value
         return {
                 'id': self._next_operation_record_id(),
@@ -126,15 +136,18 @@ class SemanticAnalyzer:
                 'dtype': self._get_resulting_datatype(op1_record,op2_record,operator),
                 'dimension': self._get_resulting_dimension(op1_record,op2_record,operator),
                 'scope': self._scope_stack.as_string(),
-                'is_root': in_tree_flag
+                'is_index': context['is_index'],
+                'is_root': is_root
                 }
 
-    def _create_record_from_operand(self,node,indexed_flag,in_tree_flag):
+    def _create_record_from_operand(self,node,context):
         scope = self._scope_stack.as_string()
+        is_root = context['is_root']
+        context['is_root'] = False
         if node.name_matches('identifier'):
             symbol = self._symbol_table.fetch(node.token.value,scope)
             datatype = symbol['data_type']
-            dimension = None if indexed_flag else symbol['array_length']
+            dimension = None if context['indexed'] else symbol['array_length']
         else:
             datatype = self._get_datatype_from_literal(node)
             dimension = None
@@ -149,7 +162,8 @@ class SemanticAnalyzer:
                 'dtype': datatype,
                 'dimension': dimension,
                 'scope': scope,
-                'is_root': in_tree_flag
+                'is_index': context['is_index'],
+                'is_root': is_root
                 }
 
     def _get_datatype_from_literal(self,node):
