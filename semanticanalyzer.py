@@ -47,6 +47,7 @@ class SemanticAnalyzer:
         self._check_for_scope_errors(program_body)
         self._gather_operation_records(program_body)
         self._check_for_type_errors()
+        self._check_for_dimensional_errors()
 
     def _next_operation_record_id(self):
         temp = self._operation_record_counter
@@ -69,11 +70,14 @@ class SemanticAnalyzer:
             report_type_error(each['op1_dtype'], each['op2_dtype'], each['operator'], each['line'])
 
     def _check_for_dimensional_errors(self):
-        pass #dim_errors = filter(lambda r: r[])
+        expression_errors = filter(lambda r: r['op1_dim'] != None and r['op2_dim'] != None and r['op1_dim'] != r['op2_dim'], self._operation_records)
+        assignment_errors = filter(lambda r: r['op1_dim'] == None and r['op2_dim'] != None, self._operation_records)
+        for each in expression_errors + assignment_errors:
+            report_dimensional_error(each['op1_dim'], each['op2_dim'], each['line'])
 
     def _gather_operation_records(self, node):
         self._scope_stack_push(node)
-        if node.name_matches('assignemnt_statment') or node.name_matches('expression'):
+        if node.name_matches('assignment_statement') or node.name_matches('expression'):
             self._create_operation_records(node,False)
         else:
             for child in node.children:
@@ -89,7 +93,7 @@ class SemanticAnalyzer:
             record = self._create_record_from_operand(node,False,in_tree_flag)
             self._operation_records.append(record)
             return record
-        elif node.name_matches('name'):
+        elif node.name_matches('name') or node.name_matches('destination'):
             identifier = node.children[0]
             if len(node.children) == 2: # its an indexed array
                 array_index_expression = node.children[1]
@@ -104,6 +108,7 @@ class SemanticAnalyzer:
             if len(node.children) == 1:
                 return self._create_operation_records(node.children[0],in_tree_flag)
             else:
+                print node.name
                 raise Exception("PROBLEM")
 
     def _create_record_from_binary_operation(self,node,in_tree_flag):
@@ -113,14 +118,13 @@ class SemanticAnalyzer:
         return {
                 'id': self._next_operation_record_id(),
                 'line': node.token.line,
-                'operator': node.token.value,
+                'operator': operator,
                 'op1_dtype': op1_record['dtype'],
                 'op2_dtype': op2_record['dtype'],
                 'op1_dim': op1_record['dimension'],
                 'op2_dim': op2_record['dimension'],
                 'dtype': self._get_resulting_datatype(op1_record,op2_record,operator),
                 'dimension': self._get_resulting_dimension(op1_record,op2_record,operator),
-                'is_vector': op1_record['is_vector'] or op2_record['is_vector'],
                 'scope': self._scope_stack.as_string(),
                 'is_root': in_tree_flag
                 }
@@ -130,12 +134,10 @@ class SemanticAnalyzer:
         if node.name_matches('identifier'):
             symbol = self._symbol_table.fetch(node.token.value,scope)
             datatype = symbol['data_type']
-            dimension = symbol['array_length']
-            is_vector = symbol['array_length'] != None and not indexed_flag
+            dimension = None if indexed_flag else symbol['array_length']
         else:
             datatype = self._get_datatype_from_literal(node)
             dimension = None
-            is_vector = False
         return {
                 'id': self._next_operation_record_id(),
                 'line': node.token.line,
@@ -147,7 +149,6 @@ class SemanticAnalyzer:
                 'dtype': datatype,
                 'dimension': dimension,
                 'scope': scope,
-                'is_vector': is_vector,
                 'is_root': in_tree_flag
                 }
 
@@ -198,19 +199,31 @@ class SemanticAnalyzer:
                 return 'float'
             else:
                 return None
+        elif operator == ':=':
+            if type1 == type2:
+                return type1
+            elif type1 == 'float' and type2 == 'integer':
+                return 'float'
+            elif type1 == 'integer' and type2 == 'float':
+                return 'integer'
+            elif type1 == 'bool' and type2 == 'integer':
+                return 'bool'
+            elif type1 == 'integer' and type2 == 'bool':
+                return 'integer'
+            else:
+                return None
         else:
             raise Exception('Not a valid binary operator: %s'%(operator))
 
     def _get_resulting_dimension(self, op1, op2, operator):
         dim1 = op1['dimension']
         dim2 = op1['dimension']
-        if op1['is_vector'] and op2['is_vector']:
-            if dim1 == dim2:
-                return dim1
-            else:
-                report_error('dim missmatch')
-                return max(dim1,dim2)
-        else:
+        if dim1 == dim2:                   # either both variable/const or equal-sized vectors
+            return dim1
+        elif dim1 == None or dim1 == None: # one is a variable/const the other is a vector
+            return max(dim1,dim2)
+        else:                              # vectors of different sizes
+            report_error('dim missmatch')
             return max(dim1,dim2)
 
     def _check_for_valid_identifiers(self, node):
@@ -241,4 +254,16 @@ def report_error(message,line):
 
 def report_type_error(type_1, type_2, operator, line):
     message = "datatype error: %s %s %s."%(type_1,operator,type_2)
+    report_error(message,line)
+
+def report_dimensional_error(dim_1, dim_2, line):
+    if dim_1 is not None:
+        dim1 = "ARRAY[%sx1]"%dim_1
+    else:
+        dim1 = 'VARIABLE'
+    if dim_2 is not None:
+        dim2 = "ARRAY[%sx1]"%dim_2
+    else:
+        dim2 = 'VARIABLE'
+    message = "dimensional missmatch in vector operation: %s and %s"%(dim1, dim2)
     report_error(message,line)
