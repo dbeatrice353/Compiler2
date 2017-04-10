@@ -49,6 +49,7 @@ class SemanticAnalyzer:
         self._check_for_type_errors()
         self._check_for_dimensional_errors()
         self._check_array_index_types()
+        self._check_procedure_arguments(program_body)
 
     def _next_operation_record_id(self):
         temp = self._operation_record_counter
@@ -72,7 +73,7 @@ class SemanticAnalyzer:
 
     def _check_for_dimensional_errors(self):
         expression_errors = filter(lambda r: r['op1_dim'] != None and r['op2_dim'] != None and r['op1_dim'] != r['op2_dim'], self._operation_records)
-        assignment_errors = filter(lambda r: r['op1_dim'] == None and r['op2_dim'] != None, self._operation_records)
+        assignment_errors = filter(lambda r: r['op1_dim'] == None and r['op2_dim'] != None and r['operator'] == ':=', self._operation_records)
         for each in expression_errors + assignment_errors:
             report_dimensional_error(each['op1_dim'], each['op2_dim'], each['line'])
 
@@ -81,49 +82,115 @@ class SemanticAnalyzer:
         for each in index_type_errors:
             report_error("array index must be of integer type",each['line'])
 
+    def _check_procedure_arguments(self,program_body):
+        proc_calls = self._gather_proc_calls(program_body)
+        for call in proc_calls:
+            given_args = filter(lambda r: r['line']==call['line'] and r['is_root'] and r['is_arg'], self._operation_records)
+            expected_args = self._symbol_table.get_expected_arguments(call['name'])
+            given_args.reverse()
+            given_count = len(given_args)
+            expected_count = len(expected_args)
+            for i in range(min(given_count,expected_count)):
+                # check direction/byRef/byVal
+                if expected_args[i]['direction'] != 'in' and not given_args[i]['is_ref']:
+                    #print expected_args[i]['direction']
+                    #print given_args[i]['is_ref']
+                    report_error("Argument %i in procedure call must not be a constant."%(i+1),call['line'])
+                # check dimension missmatches
+                if expected_args[i]['array_length'] != given_args[i]['dimension']:
+                    #print expected_args[i]['array_length']
+                    #print given_args[i]['dimension']
+                    report_error("Wrong dimensions for argument %i in procedure call."%(i+1),call['line'])
+                # check datatypes
+                if given_args[i]['dtype'] != expected_args[i]['data_type']:
+                    #print given_args[i]['dtype']
+                    #print expected_args[i]['data_type']
+                    report_error("Wrong data type for argument %i in procedure call."%(i+1),call['line'])
+            # check total number of args
+            if given_count > expected_count:
+                report_error("Too many arguments provided in procedure call.",call['line'])
+
+            if given_count < expected_count:
+                report_error("Too few arguments provided in procedure call.",call['line'])
+
+
+    def _gather_proc_calls(self,node):
+        records = []
+        if node.name_matches('procedure_call'):
+            id_node = node.children[0]
+            records.append({
+                'name':id_node.token.value,
+                'line':id_node.token.line
+                })
+        else:
+            for child in node.children:
+                records += self._gather_proc_calls(child)
+        return records
+
+    def _new_context(self):
+        return {'is_arg':False, 'is_root':True, 'is_index':False, 'indexed':False}
+
     def _gather_operation_records(self, node):
         self._scope_stack_push(node)
-        if node.name_matches('assignment_statement') or node.name_matches('expression'):
-            context = {'indexed':False, 'is_index':False, 'is_root':True}
-            self._create_operation_records(node,context)
+        context = self._new_context()
+        if node.name_matches('assignment_statement'):
+            destination = node.children[0]
+            expression = node.children[1]
+            if len(destination.children) == 2:
+                self._create_operation_records(destination.children[1],context)
+            self._create_operation_records(expression,context)
+        elif node.name_matches('if_statement'):
+            expression = node.children[0]
+            self._create_operation_records(expression,context)
+        elif node.name_matches('loop_statement'):
+            assignment_statement = node.children[0]
+            expression = node.children[1]
+            self._gather_operation_records(assignment_statement)
+            self._create_operation_records(expression,context)
+        elif node.name_matches('argument_list'):
+            expression = node.children[0]
+            if len(node.children) == 2:
+                argument_list = node.children[1]
+                self._gather_operation_records(argument_list)
+            context['is_arg'] = True
+            self._create_operation_records(expression,context)
         else:
             for child in node.children:
                 self._gather_operation_records(child)
         self._scope_stack_pop(node)
 
     def _create_operation_records(self,node,context):
-        if node.is_binary_operation() or node.name_matches('assignment_statement'):
+        if node.is_binary_operation():
             record = self._create_record_from_binary_operation(node,context)
+            self._operation_records.append(record)
+            return record
+        elif node.name_matches('name'):
+            identifier = node.children[0]
+            if len(node.children) == 2: # its an indexed array
+                index_expression = node.children[1]
+                new_context = self._new_context()
+                new_context['is_index'] = True
+                self._create_operation_records(index_expression,new_context)
+                context['indexed'] = True
+            record = self._create_record_from_operand(identifier,context)
             self._operation_records.append(record)
             return record
         elif node.is_literal():
             record = self._create_record_from_operand(node,context)
             self._operation_records.append(record)
             return record
-        elif node.name_matches('name') or node.name_matches('destination'):
-            identifier = node.children[0]
-            if len(node.children) == 2: # its an indexed array
-                array_index_expression = node.children[1]
-                context['is_index'] = True
-                context['is_root'] = True
-                self._create_operation_records(array_index_expression,context)
-                context['is_index'] = False
-                context['indexed'] = True
-            record = self._create_record_from_operand(identifier,context)
-            self._operation_records.append(record)
-            return record
         else:
             if len(node.children) == 1:
                 return self._create_operation_records(node.children[0],context)
             else:
-                print node.name
                 raise Exception("PROBLEM")
 
+
     def _create_record_from_binary_operation(self,node,context):
-        is_root = context['is_root']
-        context['is_root'] = False
-        op1_record = self._create_operation_records(node.children[0],context)
-        op2_record = self._create_operation_records(node.children[1],context)
+        new_context = self._new_context()
+        new_context['is_root'] = False
+        op1_record = self._create_operation_records(node.children[0],new_context)
+        op2_record = self._create_operation_records(node.children[1],new_context)
         operator = node.token.value
         return {
                 'id': self._next_operation_record_id(),
@@ -136,21 +203,23 @@ class SemanticAnalyzer:
                 'dtype': self._get_resulting_datatype(op1_record,op2_record,operator),
                 'dimension': self._get_resulting_dimension(op1_record,op2_record,operator),
                 'scope': self._scope_stack.as_string(),
-                'is_index': context['is_index'],
-                'is_root': is_root
+                'is_root': context['is_root'],
+                'is_ref': False,
+                'is_arg': context['is_arg'],
+                'is_index':context['is_index']
                 }
 
     def _create_record_from_operand(self,node,context):
         scope = self._scope_stack.as_string()
-        is_root = context['is_root']
-        context['is_root'] = False
         if node.name_matches('identifier'):
             symbol = self._symbol_table.fetch(node.token.value,scope)
             datatype = symbol['data_type']
             dimension = None if context['indexed'] else symbol['array_length']
+            is_ref = True
         else:
             datatype = self._get_datatype_from_literal(node)
             dimension = None
+            is_ref = False
         return {
                 'id': self._next_operation_record_id(),
                 'line': node.token.line,
@@ -162,8 +231,10 @@ class SemanticAnalyzer:
                 'dtype': datatype,
                 'dimension': dimension,
                 'scope': scope,
-                'is_index': context['is_index'],
-                'is_root': is_root
+                'is_root': context['is_root'],
+                'is_ref': is_ref,
+                'is_arg': context['is_arg'],
+                'is_index':context['is_index']
                 }
 
     def _get_datatype_from_literal(self,node):

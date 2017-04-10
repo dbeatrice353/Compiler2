@@ -70,7 +70,7 @@ class SymbolTable:
             for child in node.children:
                 self.populate(child)
 
-        if node.name_matches('procedure_declaration'):
+        if node.name_matches('procedure_body'):
             self._scope_stack.pop()
 
     def printable_string(self):

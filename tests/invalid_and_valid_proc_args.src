@@ -1,0 +1,43 @@
+
+program test_program is
+
+  procedure proc1(integer x[3] in, float y out, bool z inout)
+  begin
+  end procedure
+
+  procedure proc2(char x in)
+  begin
+  end procedure
+
+  procedure proc3(string a in, string b out, char p[10] in, char q[100] inout)
+  begin
+  end procedure
+
+  procedure proc4()
+  begin
+  end procedure
+
+  integer I[3];
+  float f;
+  bool b;
+  char c;
+  char C1[10];
+  char C2[100];
+  string s1;
+  string s2;
+
+begin
+
+  proc1(I,f,b);
+  proc2('r');
+  proc2(C1[1 + 4]);
+  proc3("test",s1,C1,C2);
+  proc4();
+
+  proc1(I,f);
+  proc2("d");
+  proc3(s1,"test",C1,C2);
+  proc3(s1,"test",C2,C1);
+  proc4("foo",C1);
+
+end program.
