@@ -45,6 +45,7 @@ class SemanticAnalyzer:
         self._symbol_table = symbol_table
         self._check_for_valid_identifiers(parse_tree)
         self._check_for_scope_errors(program_body)
+        self._check_for_forward_references(program_body)
         self._gather_operation_records(program_body)
         self._check_for_type_errors()
         self._check_for_dimensional_errors()
@@ -67,20 +68,23 @@ class SemanticAnalyzer:
             self._scope_stack.pop()
 
     def _check_for_type_errors(self):
-        type_errors = filter(lambda r: r['dtype']==None and r['op1_dtype']!=None and r['op2_dtype']!=None, self._operation_records)
-        for each in type_errors:
+        errors = filter(lambda r: r['dtype']==None and r['op1_dtype']!=None and r['op2_dtype']!=None, self._operation_records)
+        for each in errors:
             report_type_error(each['op1_dtype'], each['op2_dtype'], each['operator'], each['line'])
 
     def _check_for_dimensional_errors(self):
         expression_errors = filter(lambda r: r['op1_dim'] != None and r['op2_dim'] != None and r['op1_dim'] != r['op2_dim'], self._operation_records)
-        assignment_errors = filter(lambda r: r['op1_dim'] == None and r['op2_dim'] != None and r['operator'] == ':=', self._operation_records)
-        for each in expression_errors + assignment_errors:
+        #assignment_errors = filter(lambda r: r['op1_dim'] == None and r['op2_dim'] != None and r['operator'] == ':=', self._operation_records)
+        for each in expression_errors:
             report_dimensional_error(each['op1_dim'], each['op2_dim'], each['line'])
 
     def _check_array_index_types(self):
         index_type_errors = filter(lambda r: r['is_index'] and r['is_root'] and r['dtype'] != 'integer',self._operation_records)
         for each in index_type_errors:
             report_error("array index must be of integer type",each['line'])
+
+    def _check_for_forward_references(self,node):
+        pass
 
     def _check_procedure_arguments(self,program_body):
         proc_calls = self._gather_proc_calls(program_body)
@@ -134,11 +138,16 @@ class SemanticAnalyzer:
         self._scope_stack_push(node)
         context = self._new_context()
         if node.name_matches('assignment_statement'):
+            self._create_operation_records(node,context)
+            """
             destination = node.children[0]
             expression = node.children[1]
             if len(destination.children) == 2:
-                self._create_operation_records(destination.children[1],context)
+                new_context = self._new_context()
+                new_context['is_dest'] = True
+                self._create_operation_records(destination.children[1],new_context)
             self._create_operation_records(expression,context)
+            """
         elif node.name_matches('if_statement'):
             expression = node.children[0]
             self._create_operation_records(expression,context)
@@ -164,7 +173,11 @@ class SemanticAnalyzer:
             record = self._create_record_from_binary_operation(node,context)
             self._operation_records.append(record)
             return record
-        elif node.name_matches('name'):
+        elif node.name_matches('assignment_statement'):
+            record = self._create_record_from_binary_operation(node,context)
+            self._operation_records.append(record)
+            return record
+        elif node.name_matches('name') or node.name_matches('destination'):
             identifier = node.children[0]
             if len(node.children) == 2: # its an indexed array
                 index_expression = node.children[1]
@@ -206,7 +219,7 @@ class SemanticAnalyzer:
                 'is_root': context['is_root'],
                 'is_ref': False,
                 'is_arg': context['is_arg'],
-                'is_index':context['is_index']
+                'is_index': context['is_index']
                 }
 
     def _create_record_from_operand(self,node,context):
@@ -234,7 +247,7 @@ class SemanticAnalyzer:
                 'is_root': context['is_root'],
                 'is_ref': is_ref,
                 'is_arg': context['is_arg'],
-                'is_index':context['is_index']
+                'is_index': context['is_index']
                 }
 
     def _get_datatype_from_literal(self,node):
