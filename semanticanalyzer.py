@@ -74,9 +74,9 @@ class SemanticAnalyzer:
 
     def _check_for_dimensional_errors(self):
         expression_errors = filter(lambda r: r['op1_dim'] != None and r['op2_dim'] != None and r['op1_dim'] != r['op2_dim'], self._operation_records)
-        #assignment_errors = filter(lambda r: r['op1_dim'] == None and r['op2_dim'] != None and r['operator'] == ':=', self._operation_records)
-        for each in expression_errors:
-            report_dimensional_error(each['op1_dim'], each['op2_dim'], each['line'])
+        assignment_errors = filter(lambda r: r['op1_dim'] == None and r['op2_dim'] != None and r['operator'] == ':=', self._operation_records)
+        for each in expression_errors + assignment_errors:
+            report_dimensional_error(each['op1_dim'], each['op2_dim'], each['operator'], each['line'])
 
     def _check_array_index_types(self):
         index_type_errors = filter(lambda r: r['is_index'] and r['is_root'] and r['dtype'] != 'integer',self._operation_records)
@@ -139,15 +139,6 @@ class SemanticAnalyzer:
         context = self._new_context()
         if node.name_matches('assignment_statement'):
             self._create_operation_records(node,context)
-            """
-            destination = node.children[0]
-            expression = node.children[1]
-            if len(destination.children) == 2:
-                new_context = self._new_context()
-                new_context['is_dest'] = True
-                self._create_operation_records(destination.children[1],new_context)
-            self._create_operation_records(expression,context)
-            """
         elif node.name_matches('if_statement'):
             expression = node.children[0]
             self._create_operation_records(expression,context)
@@ -354,7 +345,7 @@ def report_type_error(type_1, type_2, operator, line):
     message = "datatype error: %s %s %s."%(type_1,operator,type_2)
     report_error(message,line)
 
-def report_dimensional_error(dim_1, dim_2, line):
+def report_dimensional_error(dim_1, dim_2, operator, line):
     if dim_1 is not None:
         dim1 = "ARRAY[%sx1]"%dim_1
     else:
@@ -363,5 +354,5 @@ def report_dimensional_error(dim_1, dim_2, line):
         dim2 = "ARRAY[%sx1]"%dim_2
     else:
         dim2 = 'VARIABLE'
-    message = "dimensional missmatch in vector operation: %s and %s"%(dim1, dim2)
+    message = "dimensional missmatch in vector operation: %s %s %s"%(dim1, operator, dim2)
     report_error(message,line)
