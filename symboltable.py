@@ -74,9 +74,9 @@ class SymbolTable:
             self._scope_stack.pop()
 
     def printable_string(self):
-        string = '%-20s%-20s%-20s%-20s%-20s%-20s%-20s\n'%('identifier','type','data_type','array_length','scope','is_argument','direction')
+        string = '%-20s%-20s%-20s%-20s%-20s%-20s%-20s%-20s\n'%('identifier','type','data_type','array_length','scope','is_argument','direction','initialized')
         for s in self._symbols:
-            string += '%-20s%-20s%-20s%-20s%-20s%-20s%-20s\n'%(str(s['identifier']),str(s['type']),str(s['data_type']),str(s['array_length']),str(s['scope']),str(s['is_argument']),str(s['direction']))
+            string += '%-20s%-20s%-20s%-20s%-20s%-20s%-20s%-20s\n'%(str(s['identifier']),str(s['type']),str(s['data_type']),str(s['array_length']),str(s['scope']),str(s['is_argument']),str(s['direction']),str(s['initialized']))
         return string
 
     def get_expected_arguments(self,identifier):
@@ -92,7 +92,8 @@ class SymbolTable:
             'array_length':None,
             'direction':None,
             'is_argument':False,
-            'definition_line':-1
+            'definition_line':-1,
+            'initialized': False
         }
 
     def _is_valid(self,symbol):
