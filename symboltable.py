@@ -93,7 +93,8 @@ class SymbolTable:
             'direction':None,
             'is_argument':False,
             'definition_line':-1,
-            'initialized': False
+            'initialized': False,
+            'global': False
         }
 
     def _is_valid(self,symbol):

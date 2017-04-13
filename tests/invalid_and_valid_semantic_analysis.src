@@ -32,13 +32,13 @@ program test_program is
       global_int := 7;
     end procedure
 
-    procedure bar_proc()
+    procedure bar_proc(integer a in, float b out, char c inout)
     begin
       // invalid - scope
       foo_x := 3;
     end procedure
 
-    procedure spam_proc()
+    procedure spam_proc(integer x[10] in, bool y[5] out, char z[2] inout, string s out)
     begin
     end procedure
 
@@ -46,6 +46,8 @@ program test_program is
     integer A2[20];
     integer A3[30];
     integer A4[10];
+    bool B[5];
+    char C[2];
     integer z1;
 
     global integer global_int;
@@ -63,17 +65,35 @@ program test_program is
 
 begin
 
+// (initial values)
+
+A1 := 0;
+A2 := 0;
+A3 := 0;
+A4 := 0;
+z1 := 0;
+i1 := 0;
+i2 := 0;
+f1 := 0;
+f2 := 0;
+c1 := '0';
+c2 := '0';
+s1 := "0";
+s2 := "0";
+b1 := false;
+b2 := false;
+B := 0;
+
 // invalid - reserved keywords
 
-if := for + begin;
-end := program/integer;
+//foobarspam := for + begin;
+//end := program/integer;
 is := float + string;
 
 // invalid - vector
 
 z1 := A1;
 A1 := A4 + A3;
-A1 := A4[2] + A[1];
 
 // invalid - scope
 foo_x := 6;
@@ -95,5 +115,37 @@ A1[true] := 4;
 A1[-3.22] := 3;
 A1[A1] := 2;
 A1["test"] := 3;
+
+
+// invalid procedure args
+
+foo_proc(A1,i1);
+bar_proc(c1, "3.14", A1);
+spam_proc('c', B, A2, "test");
+
+// valid procedure arguments
+
+foo_proc();
+bar_proc(3,f2,c2);
+spam_proc(A1,B,C,s);
+
+
+// valid - data types
+
+b1 := b1 | b2 & true & false;
+i1 := i1 + f1/f2 + 3.45 + i1;
+b1 := false;
+c1 := c2;
+c1 := '4';
+s1 := "TESTING";
+b1 := b1 == b2;
+f1 := (f1 + f2/f1 - 4)/3.4567876;
+
+// valid - proc calls
+
+foo_proc();
+bar_proc(1,f1,c1);
+spam_proc(A1,B,C,s1);
+
 
 end program.

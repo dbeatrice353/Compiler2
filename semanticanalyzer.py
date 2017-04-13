@@ -45,7 +45,6 @@ class SemanticAnalyzer:
         self._symbol_table = symbol_table
         self._check_for_valid_identifiers(parse_tree)
         self._check_for_scope_errors(program_body)
-        self._check_for_forward_references(program_body)
         self._gather_operation_records(program_body)
         self._check_for_type_errors()
         self._check_for_dimensional_errors()
@@ -79,12 +78,10 @@ class SemanticAnalyzer:
             self._report_dimensional_error(each['op1_dim'], each['op2_dim'], each['operator'], each['line'])
 
     def _check_array_index_types(self):
-        index_type_errors = filter(lambda r: r['is_index'] and r['is_root'] and r['dtype'] != 'integer',self._operation_records)
+        index_type_errors = filter(lambda r: r['is_index'] and r['is_root'] and (r['dtype'] != 'integer' or r['dimension'] != None),self._operation_records)
         for each in index_type_errors:
-            self._report_error("array index must be of integer type",each['line'])
+            self._report_error("array index must be an integer.",each['line'])
 
-    def _check_for_forward_references(self,node):
-        pass
 
     def _check_procedure_arguments(self,program_body):
         proc_calls = self._gather_proc_calls(program_body)
@@ -217,8 +214,12 @@ class SemanticAnalyzer:
         scope = self._scope_stack.as_string()
         if node.name_matches('identifier'):
             symbol = self._symbol_table.fetch(node.token.value,scope)
-            datatype = symbol['data_type']
-            dimension = None if context['indexed'] else symbol['array_length']
+            if symbol:
+                datatype = symbol['data_type']
+                dimension = None if context['indexed'] else symbol['array_length']
+            else:
+                datatype = None
+                dimension = None
             is_ref = True
         else:
             datatype = self._get_datatype_from_literal(node)
@@ -333,15 +334,18 @@ class SemanticAnalyzer:
             line = node.token.line
             scope = self._scope_stack.as_string()
             if not self._symbol_table.fetch(value,scope):
-                self._report_error("Identifer, \'%s\' not found in current scope"%(value),line)
+                symbol = self._symbol_table.fetch(value,'main')
+                if not (symbol and symbol['global']):
+                    self._report_error("Identifer, \'%s\' not found in current scope"%(value),line)
         for child in node.children:
             self._check_for_scope_errors(child)
         self._scope_stack_pop(node)
 
     def _report_error(self, message,line):
+        self._errors = True
         print "SEMANTIC ERROR (line %s): %s"%(str(line), message)
 
-    def _report_type_error(self, type1, type_2, operator, line):
+    def _report_type_error(self, type_1, type_2, operator, line):
         message = "datatype error: %s %s %s."%(type_1,operator,type_2)
         self._report_error(message,line)
 
