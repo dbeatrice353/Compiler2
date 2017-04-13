@@ -7,7 +7,8 @@ SYMBOL_TABLE_ENTRIES = [
             'array_length':None,
             'direction':None,
             'is_argument':False,
-            'definition_line':-1
+            'definition_line':-1,
+            'initialized':False
         },
         {
             'identifier':'putchar',
@@ -17,7 +18,8 @@ SYMBOL_TABLE_ENTRIES = [
             'array_length':None,
             'direction':None,
             'is_argument':False,
-            'definition_line':-1
+            'definition_line':-1,
+            'initialized':False
         },
         {
             'identifier':'getstring',
@@ -27,7 +29,8 @@ SYMBOL_TABLE_ENTRIES = [
             'array_length':None,
             'direction':None,
             'is_argument':False,
-            'definition_line':-1
+            'definition_line':-1,
+            'initialized':False
         },
         {
             'identifier':'putstring',
@@ -37,7 +40,8 @@ SYMBOL_TABLE_ENTRIES = [
             'array_length':None,
             'direction':None,
             'is_argument':False,
-            'definition_line':-1
+            'definition_line':-1,
+            'initialized':False
         },
         {
             'identifier':'getinteger',
@@ -47,7 +51,8 @@ SYMBOL_TABLE_ENTRIES = [
             'array_length':None,
             'direction':None,
             'is_argument':False,
-            'definition_line':-1
+            'definition_line':-1,
+            'initialized':False
         },
         {
             'identifier':'putinteger',
@@ -57,7 +62,8 @@ SYMBOL_TABLE_ENTRIES = [
             'array_length':None,
             'direction':None,
             'is_argument':False,
-            'definition_line':-1
+            'definition_line':-1,
+            'initialized':False
         },
         {
             'identifier':'getfloat',
@@ -67,7 +73,8 @@ SYMBOL_TABLE_ENTRIES = [
             'array_length':None,
             'direction':None,
             'is_argument':False,
-            'definition_line':-1
+            'definition_line':-1,
+            'initialized':False
         },
         {
             'identifier':'putfloat',
@@ -77,7 +84,8 @@ SYMBOL_TABLE_ENTRIES = [
             'array_length':None,
             'direction':None,
             'is_argument':False,
-            'definition_line':-1
+            'definition_line':-1,
+            'initialized':False
         },
         {
             'identifier':'getbool',
@@ -87,7 +95,8 @@ SYMBOL_TABLE_ENTRIES = [
             'array_length':None,
             'direction':None,
             'is_argument':False,
-            'definition_line':-1
+            'definition_line':-1,
+            'initialized':False
         },
         {
             'identifier':'putbool',
@@ -97,7 +106,8 @@ SYMBOL_TABLE_ENTRIES = [
             'array_length':None,
             'direction':None,
             'is_argument':False,
-            'definition_line':-1
+            'definition_line':-1,
+            'initialized':False
         },
         {
             'identifier':'val',
@@ -107,7 +117,8 @@ SYMBOL_TABLE_ENTRIES = [
             'array_length':None,
             'direction':'out',
             'is_argument':True,
-            'definition_line':-1
+            'definition_line':-1,
+            'initialized':False
         },
         {
             'identifier':'val',
@@ -117,7 +128,8 @@ SYMBOL_TABLE_ENTRIES = [
             'array_length':None,
             'direction':'in',
             'is_argument':True,
-            'definition_line':-1
+            'definition_line':-1,
+            'initialized':False
         },
         {
             'identifier':'val',
@@ -127,7 +139,8 @@ SYMBOL_TABLE_ENTRIES = [
             'array_length':None,
             'direction':'out',
             'is_argument':True,
-            'definition_line':-1
+            'definition_line':-1,
+            'initialized':False
         },
         {
             'identifier':'val',
@@ -137,7 +150,8 @@ SYMBOL_TABLE_ENTRIES = [
             'array_length':None,
             'direction':'in',
             'is_argument':True,
-            'definition_line':-1
+            'definition_line':-1,
+            'initialized':False
         },
         {
             'identifier':'val',
@@ -147,7 +161,8 @@ SYMBOL_TABLE_ENTRIES = [
             'array_length':None,
             'direction':'out',
             'is_argument':True,
-            'definition_line':-1
+            'definition_line':-1,
+            'initialized':False
         },
         {
             'identifier':'val',
@@ -157,7 +172,8 @@ SYMBOL_TABLE_ENTRIES = [
             'array_length':None,
             'direction':'in',
             'is_argument':True,
-            'definition_line':-1
+            'definition_line':-1,
+            'initialized':False
         },
         {
             'identifier':'val',
@@ -167,7 +183,8 @@ SYMBOL_TABLE_ENTRIES = [
             'array_length':None,
             'direction':'out',
             'is_argument':True,
-            'definition_line':-1
+            'definition_line':-1,
+            'initialized':False
         },
         {
             'identifier':'val',
@@ -177,7 +194,8 @@ SYMBOL_TABLE_ENTRIES = [
             'array_length':None,
             'direction':'in',
             'is_argument':True,
-            'definition_line':-1
+            'definition_line':-1,
+            'initialized':False
         },
         {
             'identifier':'val',
@@ -187,7 +205,8 @@ SYMBOL_TABLE_ENTRIES = [
             'array_length':None,
             'direction':'out',
             'is_argument':True,
-            'definition_line':-1
+            'definition_line':-1,
+            'initialized':False
         },
         {
             'identifier':'val',
@@ -197,6 +216,7 @@ SYMBOL_TABLE_ENTRIES = [
             'array_length':None,
             'direction':'in',
             'is_argument':True,
-            'definition_line':-1
+            'definition_line':-1,
+            'initialized':False
         }
 ]

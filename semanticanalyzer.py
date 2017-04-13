@@ -70,18 +70,18 @@ class SemanticAnalyzer:
     def _check_for_type_errors(self):
         errors = filter(lambda r: r['dtype']==None and r['op1_dtype']!=None and r['op2_dtype']!=None, self._operation_records)
         for each in errors:
-            report_type_error(each['op1_dtype'], each['op2_dtype'], each['operator'], each['line'])
+            self._report_type_error(each['op1_dtype'], each['op2_dtype'], each['operator'], each['line'])
 
     def _check_for_dimensional_errors(self):
         expression_errors = filter(lambda r: r['op1_dim'] != None and r['op2_dim'] != None and r['op1_dim'] != r['op2_dim'], self._operation_records)
         assignment_errors = filter(lambda r: r['op1_dim'] == None and r['op2_dim'] != None and r['operator'] == ':=', self._operation_records)
         for each in expression_errors + assignment_errors:
-            report_dimensional_error(each['op1_dim'], each['op2_dim'], each['operator'], each['line'])
+            self._report_dimensional_error(each['op1_dim'], each['op2_dim'], each['operator'], each['line'])
 
     def _check_array_index_types(self):
         index_type_errors = filter(lambda r: r['is_index'] and r['is_root'] and r['dtype'] != 'integer',self._operation_records)
         for each in index_type_errors:
-            report_error("array index must be of integer type",each['line'])
+            self._report_error("array index must be of integer type",each['line'])
 
     def _check_for_forward_references(self,node):
         pass
@@ -99,23 +99,23 @@ class SemanticAnalyzer:
                 if expected_args[i]['direction'] != 'in' and not given_args[i]['is_ref']:
                     #print expected_args[i]['direction']
                     #print given_args[i]['is_ref']
-                    report_error("Argument %i in procedure call must not be a constant."%(i+1),call['line'])
+                    self._report_error("Argument %i in procedure call must not be a constant."%(i+1),call['line'])
                 # check dimension missmatches
                 if expected_args[i]['array_length'] != given_args[i]['dimension']:
                     #print expected_args[i]['array_length']
                     #print given_args[i]['dimension']
-                    report_error("Wrong dimensions for argument %i in procedure call."%(i+1),call['line'])
+                    self._report_error("Wrong dimensions for argument %i in procedure call."%(i+1),call['line'])
                 # check datatypes
                 if given_args[i]['dtype'] != expected_args[i]['data_type']:
                     #print given_args[i]['dtype']
                     #print expected_args[i]['data_type']
-                    report_error("Wrong data type for argument %i in procedure call."%(i+1),call['line'])
+                    self._report_error("Wrong data type for argument %i in procedure call."%(i+1),call['line'])
             # check total number of args
             if given_count > expected_count:
-                report_error("Too many arguments provided in procedure call.",call['line'])
+                self._report_error("Too many arguments provided in procedure call.",call['line'])
 
             if given_count < expected_count:
-                report_error("Too few arguments provided in procedure call.",call['line'])
+                self._report_error("Too few arguments provided in procedure call.",call['line'])
 
 
     def _gather_proc_calls(self,node):
@@ -312,13 +312,13 @@ class SemanticAnalyzer:
         elif dim1 == None or dim1 == None: # one is a variable/const the other is a vector
             return max(dim1,dim2)
         else:                              # vectors of different sizes
-            report_error('dim missmatch')
+            self._report_error('dim missmatch')
             return max(dim1,dim2)
 
     def _check_for_valid_identifiers(self, node):
         if node.name_matches('identifier'):
             if node.token.value in SemanticAnalyzer.RESERVED_KEY_WORDS:
-                report_error("Attempt to use a reserved key word as an identifier", node.token.line)
+                self._report_error("Attempt to use a reserved key word as an identifier", node.token.line)
         else:
             for child in node.children:
                 self._check_for_valid_identifiers(child)
@@ -333,26 +333,26 @@ class SemanticAnalyzer:
             line = node.token.line
             scope = self._scope_stack.as_string()
             if not self._symbol_table.fetch(value,scope):
-                report_error("Identifer, \'%s\' not found in current scope"%(value),line)
+                self._report_error("Identifer, \'%s\' not found in current scope"%(value),line)
         for child in node.children:
             self._check_for_scope_errors(child)
         self._scope_stack_pop(node)
 
-def report_error(message,line):
-    print "SEMANTIC ERROR (line %s): %s"%(str(line), message)
+    def _report_error(self, message,line):
+        print "SEMANTIC ERROR (line %s): %s"%(str(line), message)
 
-def report_type_error(type_1, type_2, operator, line):
-    message = "datatype error: %s %s %s."%(type_1,operator,type_2)
-    report_error(message,line)
+    def _report_type_error(self, type1, type_2, operator, line):
+        message = "datatype error: %s %s %s."%(type_1,operator,type_2)
+        self._report_error(message,line)
 
-def report_dimensional_error(dim_1, dim_2, operator, line):
-    if dim_1 is not None:
-        dim1 = "ARRAY[%sx1]"%dim_1
-    else:
-        dim1 = 'VARIABLE'
-    if dim_2 is not None:
-        dim2 = "ARRAY[%sx1]"%dim_2
-    else:
-        dim2 = 'VARIABLE'
-    message = "dimensional missmatch in vector operation: %s %s %s"%(dim1, operator, dim2)
-    report_error(message,line)
+    def _report_dimensional_error(self, dim_1, dim_2, operator, line):
+        if dim_1 is not None:
+            dim1 = "ARRAY[%sx1]"%dim_1
+        else:
+            dim1 = 'VARIABLE'
+        if dim_2 is not None:
+            dim2 = "ARRAY[%sx1]"%dim_2
+        else:
+            dim2 = 'VARIABLE'
+        message = "dimensional missmatch in vector operation: %s %s %s"%(dim1, operator, dim2)
+        self._report_error(message,line)
