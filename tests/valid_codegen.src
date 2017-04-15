@@ -9,7 +9,31 @@ program test_program is
   float f;
   bool b1[3];
   bool b;
-  
+
+  procedure p1(integer i in, float f in, bool b in, char c in, string s in)
+  begin
+  end procedure
+
+  procedure p2(integer i out, float f out, bool b out, char c out, string s out)
+  begin
+  end procedure
+
+  procedure p3(integer i inout, float f inout, bool b inout, char c inout, string s inout)
+  begin
+  end procedure
+
+  procedure p4(integer i[10] in, float f[10] in, bool b[10] in, char c[10] in)
+  begin
+  end procedure
+
+  procedure p5(integer i[10] out, float f[10] out, bool b[10] out, char c[10] out)
+  begin
+  end procedure
+
+  procedure p6(integer i[10] inout, float f[10] inout, bool b[10] inout, char c[10] inout)
+  begin
+  end procedure
+
 begin
 
 end program.

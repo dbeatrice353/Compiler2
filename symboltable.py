@@ -53,7 +53,7 @@ class SymbolTable:
 
     def errors(self):
         return self._errors
-
+        
     def populate(self,node):
         if node.name_matches('declaration'):
             child = node.children[0]

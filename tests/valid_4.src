@@ -25,7 +25,8 @@ begin
 
     putString(str1);
     putString(str2);
-
+  else
+    putbool(b1);
   end if
 
 end program.

@@ -50,4 +50,4 @@ if not errors:
 
 # generate the LLVM IR
 if not errors:
-    code_generator.generate(parse_tree)
+    code_generator.generate(parse_tree, symbol_table)
