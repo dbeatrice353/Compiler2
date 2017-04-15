@@ -94,18 +94,12 @@ class SemanticAnalyzer:
             for i in range(min(given_count,expected_count)):
                 # check direction/byRef/byVal
                 if expected_args[i]['direction'] != 'in' and not given_args[i]['is_ref']:
-                    #print expected_args[i]['direction']
-                    #print given_args[i]['is_ref']
                     self._report_error("Argument %i in procedure call must not be a constant."%(i+1),call['line'])
                 # check dimension missmatches
                 if expected_args[i]['array_length'] != given_args[i]['dimension']:
-                    #print expected_args[i]['array_length']
-                    #print given_args[i]['dimension']
                     self._report_error("Wrong dimensions for argument %i in procedure call."%(i+1),call['line'])
                 # check datatypes
                 if given_args[i]['dtype'] != expected_args[i]['data_type']:
-                    #print given_args[i]['dtype']
-                    #print expected_args[i]['data_type']
                     self._report_error("Wrong data type for argument %i in procedure call."%(i+1),call['line'])
             # check total number of args
             if given_count > expected_count:
@@ -139,11 +133,17 @@ class SemanticAnalyzer:
         elif node.name_matches('if_statement'):
             expression = node.children[0]
             self._create_operation_records(expression,context)
+            if len(node.children) > 1:
+                for child in node.children[1:]:
+                    self._gather_operation_records(child)
         elif node.name_matches('loop_statement'):
             assignment_statement = node.children[0]
             expression = node.children[1]
             self._gather_operation_records(assignment_statement)
             self._create_operation_records(expression,context)
+            if len(node.children) > 2:
+                for child in node.children[2:]:
+                    self._gather_operation_records(child)
         elif node.name_matches('argument_list'):
             expression = node.children[0]
             if len(node.children) == 2:
