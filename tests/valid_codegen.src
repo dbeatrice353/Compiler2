@@ -1,0 +1,15 @@
+
+program test_program is
+
+  global string s;
+  global char c[100];
+  global integer i;
+
+  float f1[10];
+  float f;
+  bool b1[3];
+  bool b;
+  
+begin
+
+end program.

@@ -2,6 +2,7 @@ from scanner import Scanner
 from parser import Parser
 from symboltable import SymbolTable
 from semanticanalyzer import SemanticAnalyzer
+from codegen import CodeGenerator
 import sys
 
 
@@ -24,6 +25,7 @@ scanner = Scanner()
 parser = Parser()
 symbol_table = SymbolTable()
 semantic_analyzer = SemanticAnalyzer()
+code_generator = CodeGenerator()
 
 # scan
 tokens = scanner.scan(code)
@@ -47,4 +49,5 @@ if not errors:
     print_out(file_name+'.operations.temp',semantic_analyzer.printable_string())
 
 # generate the LLVM IR
-# ...
+if not errors:
+    code_generator.generate(parse_tree)
