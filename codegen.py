@@ -6,39 +6,68 @@ class CodeGenerator:
         self._symbol_table = None
         self._register_counter = 0
         self._scope_stack = ScopeStack()
+        self._output_file = "ir.ll"
+        self._output_file_ptr = None
 
-    def generate(self,node, symbol_table):
+    def generate(self, node, symbol_table):
+        self._output_file_ptr = open(self._output_file,"w")
         self._symbol_table = symbol_table
         self._register_counter = 0
+        self._generate_global_variable_declarations(node)
+        self._generate_procedure_declarations(node)
+        self._generate_main_header()
         self._generate(node)
+        self._generate_main_footer()
+        self._output_file_ptr.close()
 
     def _next_register(self):
         name = "%r" + str(self._register_counter)
         self._register_counter += 1
         return name
 
-    def _generate(self,node):
+    def _generate_main_header(self):
+        self._put("define i32 @main(){")
+
+    def _generate_main_footer(self):
+        self._put("ret i32 0")
+        self._put("}")
+
+    def _generate_global_variable_declarations(self,node):
         if node.name_matches('declaration'):
             child = node.children[0]
-            if node.token:
+            if node.token and node.token.value == "global":
                 global_flag = True
-            else:
-                global_flag = False
-            if child.name_matches('variable_declaration'):
-                self._handle_variable_declaration(child,global_flag)
+                if child.name_matches('variable_declaration'):
+                    self._handle_variable_declaration(child,global_flag)
+        else:
+            for child in node.children:
+                self._generate_global_variable_declarations(child)
+
+    def _generate_procedure_declarations(self,node):
+        if node.name_matches('declaration'):
+            child = node.children[0]
             if child.name_matches('procedure_declaration'):
                 self._handle_procedure_declaration(child)
-        elif node.name_matches("expression"):
+        else:
+            for child in node.children:
+                self._generate_procedure_declarations(child)
+
+    def _generate(self,node):
+        if node.name_matches("expression"):
             self._handle_expression(node)
+        elif node.name_matches("variable_declaration"):
+            self._handle_variable_declaration(node,False)
+        elif node.name_matches("procedure_declaration"):
+            return
         else:
             for child in node.children:
                 self._generate(child)
 
     def _put(self, statement):
-        print statement
+        self._output_file_ptr.write(statement + "\n")
 
     def _generate_global_variable_declaration(self, reg_name, dtype):
-        self._put("%s = global %s"%(reg_name, dtype))
+        self._put("%s = global %s zeroinitializer"%(reg_name, dtype))
 
     def _generate_global_array_declaration(self, reg_name, dtype, size):
         self._put("%s = global [%s x %s] zeroinitializer"%(reg_name,str(size),dtype))
@@ -72,12 +101,14 @@ class CodeGenerator:
         header = "define void %s"%name
         arg_strings = map(lambda a: "%s %s"%(a["dtype"],a["name"]),args)
         arguments = "(" + ", ".join(arg_strings) + ")"
-        self._put(header + arguments)
+        self._put(header + arguments + "{")
         for arg in args:
             arg["reg_name"] = self._next_register()
             self._generate_variable_alloc(arg["reg_name"],arg["dtype"])
         for arg in args:
             self._generate_store(arg["name"],arg["reg_name"],arg["dtype"],arg["dtype"]+"*")
+        self._put("ret void")
+        self._put("}")
 
     def _generate_operation(self,op1,op2,operator):
         result = self._next_register()
@@ -89,6 +120,9 @@ class CodeGenerator:
 
     def _register_name(self,identifier):
         return "%" + identifier
+
+    def _proc_name(self,identifier):
+        return "@" + identifier
 
     def _ir_datatype(self, datatype):
         if datatype == "float":
@@ -175,7 +209,7 @@ class CodeGenerator:
 
     def _handle_procedure_declaration(self, node):
         proc_header = node.children[0]
-        identifier = proc_header.children[0].token.value
+        identifier = self._proc_name(proc_header.children[0].token.value)
         args = self._get_expected_arguments(identifier)
         self._generate_procedure_declaration(identifier, args)
 

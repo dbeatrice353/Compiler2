@@ -38,10 +38,10 @@ INT_IR_OPERATIONS = {
 }
 
 BOOL_IR_OPERATIONS = {
-    "!=":"",
-    "==":"",
-    "|":"",
-    "&":"",
+    "!=":"icmp ne",
+    "==":"icmp eq",
+    "|":"or",
+    "&":"and",
 }
 
 FP_IR_RETURN_TYPE = {
