@@ -2,6 +2,8 @@ from scanner import Token
 from runtimeprocedures import SYMBOL_TABLE_ENTRIES
 
 
+
+
 class ScopeStack:
     def __init__(self):
         self.stack = []
@@ -19,7 +21,15 @@ class ScopeStack:
     def as_list(self):
         return self.stack
 
+    def push_node(self,node):
+        if node.name_matches('procedure_declaration'):
+            header = node.children[0]
+            identifier = header.children[0]
+            self.push(identifier.token.value)
 
+    def pop_node(self,node):
+        if node.name_matches('procedure_declaration'):
+            self.pop()
 
 class SymbolTable:
     def __init__(self):
@@ -53,7 +63,7 @@ class SymbolTable:
 
     def errors(self):
         return self._errors
-        
+
     def populate(self,node):
         if node.name_matches('declaration'):
             child = node.children[0]

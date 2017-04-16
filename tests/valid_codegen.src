@@ -1,14 +1,19 @@
 
 program test_program is
 
-  global string s;
-  global char c[100];
-  global integer i;
+  global string y;
+  global char z[100];
+  global integer x;
 
-  float f1[10];
   float f;
-  bool b1[3];
+  float fa[10];
+  integer i;
+  integer ia[5];
+  char c;
+  char ca[20];
   bool b;
+  bool ba[15];
+  string s;
 
   procedure p1(integer i in, float f in, bool b in, char c in, string s in)
   begin
@@ -35,5 +40,15 @@ program test_program is
   end procedure
 
 begin
+
+  f     := 3.14 + 2.45/5;
+  fa[0] := 4.56 - 3;
+  i     := 2 + (9 - 1) + 5;
+  ia[1] := 6 + 5;
+  c     := 'r';
+  ca[2] := 'e';
+  b     := false | true;
+  ba[3] := true & false;
+  //s     := "test";
 
 end program.

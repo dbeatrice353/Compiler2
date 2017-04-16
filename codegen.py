@@ -1,9 +1,10 @@
-
+from symboltable import ScopeStack
 
 class CodeGenerator:
     def __init__(self):
         self._symbol_table = None
         self._register_counter = 0
+        self._scope_stack = ScopeStack()
 
     def generate(self,node, symbol_table):
         self._symbol_table = symbol_table
@@ -26,6 +27,8 @@ class CodeGenerator:
                 self._handle_variable_declaration(child,global_flag)
             if child.name_matches('procedure_declaration'):
                 self._handle_procedure_declaration(child)
+        elif node.name_matches("expression"):
+            self._handle_expression(node)
         else:
             for child in node.children:
                 self._generate(child)
@@ -48,8 +51,21 @@ class CodeGenerator:
     def _generate_store(self, src_name, dst_name, src_dtype, dst_dtype):
         self._put("store %s %s, %s %s"%(src_dtype, src_name, dst_dtype, dst_name))
 
+    def _generate_array_store(name,size,dtype,index,value):
+        ptr = self._generate_getelementptr(name,size,dtype,index)
+        self._generate_store(name,ptr,dtype,dtype+"*")
+
     def _generate_load(self, src_name, dst_name, src_dtype):
         self._put("%s = load %s %s"%(dst_name, src_type, src_name))
+
+    def _generate_array_load(name,size,dtype,index):
+        ptr = self._generate_getelementptr(name,size,dtype,index)
+        self._generate_load(name,ptr,dtype)
+
+    def _generate_getelementptr(self, name, size, dtype, index):
+        result_reg = self._next_register()
+        self._put("%s = getelementptr inbounds [%s x %s]* %s, i32 0, i64 %s"%(result_reg,str(size),dtype,name,str(index)))
+        return result_reg
 
     def _generate_procedure_declaration(self,name,args):
         header = "define void %s"%name
@@ -61,16 +77,6 @@ class CodeGenerator:
             self._generate_variable_alloc(arg["reg_name"],arg["dtype"])
         for arg in args:
             self._generate_store(arg["name"],arg["reg_name"],arg["dtype"],arg["dtype"]+"*")
-
-    """
-    define void @_Z4prociPfPKc(i32 %i, float* %f, i8* %string) #0 {
-      %1 = alloca i32, align 4
-      %2 = alloca float*, align 8
-      %3 = alloca i8*, align 8
-      store i32 %i, i32* %1, align 4
-      store float* %f, float** %2, align 8
-      store i8* %string, i8** %3, align 8
-    """
 
     def _global_name(self,identifier):
         return "@" + identifier
@@ -89,6 +95,40 @@ class CodeGenerator:
             return "i1"
         else: # string
             return "i8*"
+
+    def _to_ir_literal(self, node):
+        token_value = node.token.value
+        token_type = node.token.type
+        if token_type == "NUMBER":
+            if "." in token_value:
+                return {
+                        "value": token_value + "e+00",
+                        "dtype": "double"
+                        }
+            else:
+                return {
+                        "value": token_value,
+                        "dtype": "i32"
+                        }
+        elif token_type == "CHARACTER":
+            return {
+                    "value": str(ord(token_value)),
+                    "dtype": "i8"
+                    }
+        elif token_type == "BOOLEAN" or token_value in ["true","false"]:
+            if token_value == "true":
+                value = "1"
+            else:
+                value = "0"
+            return {
+                    "value": value,
+                    "dtype": "i1"
+                    }
+        elif token_type == "STRING":
+            raise Exception("STRING")
+        else:
+            print "DEBUG: " + token_type + " " + token_value
+            raise Exception("there's a problem.")
 
     def _get_expected_arguments(self, identifier):
         arg_symbols = self._symbol_table.get_expected_arguments(identifier)
@@ -127,3 +167,50 @@ class CodeGenerator:
         else: # not array and not global
             name = self._register_name(source_name)
             self._generate_variable_alloc(name,dtype)
+
+    def _handle_assignment(self, node):
+        """
+        destination = node.children[0]
+        expresson = node.children[1]
+        result = self._handle_expression(expression)
+
+        dest_name = self._register_name(destination.children[0].token.value)
+        if len(destination.children) == 2: # array access
+            index = self._register_name(destination.children[1].token.value)
+            self._generate_array
+        """
+        pass
+
+    def _handle_expression(self, node):
+        if node.is_binary_operation():
+
+            op1 = self._handle_expression(node.children[0])
+            op2 = self._handle_expression(node.children[1])
+            operation = node.token.value
+            # handle: different datatypes, operators for datatypes
+            result = self._next_register()
+            print " ".join([result, operation, op1["value"], op2["value"]])
+            return {
+                    "value": result,
+                    "dtype": op1["dtype"]
+                    }
+        elif node.name_matches('name'):
+            identifier = node.children[0]
+            symbol = self._symbol_table.fetch(identifier.token.value,self._scope_stack.as_string())
+            name = self._register_name(symbol["identifier"])
+            dtype = self._ir_datatype(symbol["data_type"])
+            if symbol["type"] == "array":
+                index = self._handle_expression(node.children[1])
+                size = symbol["array_length"]
+                result = self._generate_array_load(name,size,dtype,index["value"]) #name,size,dtype,index
+            else:
+                dst_name = self._next_register()
+                result = self._generate_load(name,dst_name,dtype) #src_name, dst_name, src_dtype
+            return {
+                    "value": result,
+                    "dtype": dtype
+                    }
+        elif node.is_literal():
+            return self._to_ir_literal(node)
+        else:
+            return self._handle_expression(node.children[0])
