@@ -1,4 +1,5 @@
 from symboltable import ScopeStack
+import constants
 
 class CodeGenerator:
     def __init__(self):
@@ -78,6 +79,11 @@ class CodeGenerator:
         for arg in args:
             self._generate_store(arg["name"],arg["reg_name"],arg["dtype"],arg["dtype"]+"*")
 
+    def _generate_operation(self,op1,op2,operator):
+        result = self._next_register()
+        self._put("%s = %s %s %s, %s"%(result,operator,op1["dtype"],op1["value"],op2["value"]))
+        return result
+
     def _global_name(self,identifier):
         return "@" + identifier
 
@@ -95,6 +101,17 @@ class CodeGenerator:
             return "i1"
         else: # string
             return "i8*"
+
+    def _i32_to_i1(self,operand):
+        if operand["value"] != "0":
+             operand["value"] = "1"
+        operand["dtype"] = "i1"
+        return operand
+
+    def _i32_to_double(self,operand):
+        operand["value"] = operand["value"] + ".0e+00"
+        operand["dtype"] = "double"
+        return operand
 
     def _to_ir_literal(self, node):
         token_value = node.token.value
@@ -141,6 +158,21 @@ class CodeGenerator:
             args.append({"name":name,"dtype":data_type})
         return args
 
+    def _handle_type_conversions(self,op1,op2,operator):
+        if operator in constants.EXPRESSION_OPS: # ['&','|']
+            if op1["dtype"] != "i1":
+                op1 = self._i32_to_i1(op1)
+            if op2["dtype"] != "i1":
+                op2 = self._i32_to_i1(op2)
+        else:
+            if op1["dtype"] == "double" and op2["dtype"] == "i32":
+                op2 = self._i32_to_double(op2)
+            elif op2["dtype"] == "double" and op1["dtype"] == "i32":
+                op1 = self._i32_to_double(op1)
+            else:
+                pass
+        return [op1,op2]
+
     def _handle_procedure_declaration(self, node):
         proc_header = node.children[0]
         identifier = proc_header.children[0].token.value
@@ -181,19 +213,29 @@ class CodeGenerator:
         """
         pass
 
+    def _handle_operation(self,op1,op2,operator):
+        dtype = op1["dtype"]
+        if dtype == "double":
+            ir_operator = constants.FP_IR_OPERATIONS[operator]
+            return_type = constants.FP_IR_RETURN_TYPE[operator]
+        elif dtype == "i32":
+            ir_operator = constants.INT_IR_OPERATIONS[operator]
+            return_type = constants.INT_IR_RETURN_TYPE[operator]
+        elif dtype == "i1":
+            ir_operator = constants.BOOL_IR_OPERATIONS[operator]
+            return_type = constants.BOOL_IR_RETURN_TYPE[operator]
+        else:
+            raise Exception("problem")
+        result = self._generate_operation(op1,op2,ir_operator)
+        return {"value":result,"dtype":return_type}
+
     def _handle_expression(self, node):
         if node.is_binary_operation():
-
             op1 = self._handle_expression(node.children[0])
             op2 = self._handle_expression(node.children[1])
-            operation = node.token.value
-            # handle: different datatypes, operators for datatypes
-            result = self._next_register()
-            print " ".join([result, operation, op1["value"], op2["value"]])
-            return {
-                    "value": result,
-                    "dtype": op1["dtype"]
-                    }
+            operator = node.token.value
+            [op1,op2] = self._handle_type_conversions(op1,op2,operator)
+            return self._handle_operation(op1,op2,operator)
         elif node.name_matches('name'):
             identifier = node.children[0]
             symbol = self._symbol_table.fetch(identifier.token.value,self._scope_stack.as_string())
