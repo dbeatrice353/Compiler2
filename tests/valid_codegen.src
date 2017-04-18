@@ -13,10 +13,13 @@ program test_program is
   char ca[20];
   bool b;
   bool ba[15];
-  string s;
+  string s1;
+  string s2;
 
   procedure p1(integer i in, float f in, bool b in, char c in, string s in)
+    string s1;
   begin
+    s1 := "foo_bar_spam";
   end procedure
 
   procedure p2(integer i out, float f out, bool b out, char c out, string s out)
@@ -49,6 +52,7 @@ begin
   ca[2] := 'e';
   b     := false | true;
   ba[3] := true & false;
-  //s     := "test";
+  s1    := "test";
+  s2    := "tomato";
 
 end program.

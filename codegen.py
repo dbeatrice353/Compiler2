@@ -5,6 +5,7 @@ class CodeGenerator:
     def __init__(self):
         self._symbol_table = None
         self._register_counter = 0
+        self._string_counter = 0
         self._scope_stack = ScopeStack()
         self._output_file = "ir.ll"
         self._output_file_ptr = None
@@ -13,6 +14,7 @@ class CodeGenerator:
         self._output_file_ptr = open(self._output_file,"w")
         self._symbol_table = symbol_table
         self._register_counter = 0
+        self._generate_constant_string_declarations(node)
         self._generate_global_variable_declarations(node)
         self._generate_procedure_declarations(node)
         self._generate_main_header()
@@ -23,6 +25,11 @@ class CodeGenerator:
     def _next_register(self):
         name = "%r" + str(self._register_counter)
         self._register_counter += 1
+        return name
+
+    def _next_string_name(self):
+        name = "@string_" + str(self._string_counter)
+        self._string_counter += 1
         return name
 
     def _generate_main_header(self):
@@ -42,6 +49,15 @@ class CodeGenerator:
         else:
             for child in node.children:
                 self._generate_global_variable_declarations(child)
+
+    def _generate_constant_string_declarations(self, node):
+        if node.name_matches("string"):
+            string = node.token.value
+            name = self._next_string_name()
+            self._generate_constant_string_declaration(name,string)
+        else:
+            for child in node.children:
+                self._generate_constant_string_declarations(child)
 
     def _generate_procedure_declarations(self,node):
         if node.name_matches('declaration'):
@@ -65,6 +81,9 @@ class CodeGenerator:
 
     def _put(self, statement):
         self._output_file_ptr.write(statement + "\n")
+
+    def _generate_constant_string_declaration(self, name, string):
+        self._put("%s = private unnamed_addr constant [%i x i8] c\"%s\\00\""%(name,len(string)+1,string))
 
     def _generate_global_variable_declaration(self, reg_name, dtype):
         self._put("%s = global %s zeroinitializer"%(reg_name, dtype))
@@ -176,7 +195,8 @@ class CodeGenerator:
                     "dtype": "i1"
                     }
         elif token_type == "STRING":
-            raise Exception("STRING")
+            #raise Exception("STRING")
+            print "to ir literal: string"
         else:
             print "DEBUG: " + token_type + " " + token_value
             raise Exception("there's a problem.")
