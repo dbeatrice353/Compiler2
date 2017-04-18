@@ -222,7 +222,6 @@ class Scanner:
         while True:
             c = self._peek()
             if c.matches(None):
-                print(set(invalid))
                 return self.tokens
 
             if c.matches('"'):
