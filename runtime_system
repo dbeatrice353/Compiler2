@@ -1,0 +1,64 @@
+
+declare i32 @printf(i8*, ...)
+declare i32 @scanf(i8*, ...)
+
+@format_spec_i = private unnamed_addr constant [3 x i8] c"%i\00"
+@format_spec_b = private unnamed_addr constant [3 x i8] c"%i\00"
+@format_spec_d = private unnamed_addr constant [4 x i8] c"%lf\00"
+@format_spec_c = private unnamed_addr constant [3 x i8] c"%c\00"
+@format_spec_s = private unnamed_addr constant [3 x i8] c"%s\00"
+
+define void @getinteger(i32* %output){
+  %d = call i32 (i8*, ...)* @scanf(i8* getelementptr inbounds ([3 x i8]* @format_spec_i, i32 0, i32 0), i32* %output)
+  ret void;
+}
+
+define void @getfloat(double* %output){
+  %d = call i32 (i8*, ...)* @scanf(i8* getelementptr inbounds ([4 x i8]* @format_spec_d, i32 0, i32 0), double* %output)
+  ret void;
+}
+
+define void @getchar(i8* %output){
+  %d = call i32 (i8*, ...)* @scanf(i8* getelementptr inbounds ([3 x i8]* @format_spec_c, i32 0, i32 0), i8* %output)
+  ret void;
+}
+
+define void @getbool(i32* %output){
+  %d = call i32 (i8*, ...)* @scanf(i8* getelementptr inbounds ([3 x i8]* @format_spec_i, i32 0, i32 0), i32* %output)
+  %value = load i32* %output
+  %flag = icmp ne i32 %value, 0
+  %bool = zext i1 %flag to i32
+  store i32 %bool, i32* %output
+  ret void;
+}
+
+define void @getstring(i8* %output){
+  %d = call i32 (i8*, ...)* @scanf(i8* getelementptr inbounds ([3 x i8]* @format_spec_s, i32 0, i32 0), i8* %output)
+  ret void;
+}
+
+define void @putinteger(i32 %val){
+  %d = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([3 x i8]* @format_spec_i, i32 0, i32 0), i32 %val)
+  ret void;
+}
+
+define void @putchar(i8 %val){
+  %ascii = sext i8 %val to i32
+  %d = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([3 x i8]* @format_spec_c, i32 0, i32 0), i32 %ascii)
+  ret void;
+}
+
+define void @putbool(i32 %val){
+  %d = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([3 x i8]* @format_spec_b, i32 0, i32 0), i32 %val)
+  ret void;
+}
+
+define void @putfloat(double %val){
+  %d = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @format_spec_d, i32 0, i32 0), double %val)
+  ret void;
+}
+
+define void @putstring(i8* %val){
+  %d = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([3 x i8]* @format_spec_s, i32 0, i32 0), i8* %val)
+  ret void;
+}

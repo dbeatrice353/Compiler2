@@ -8,6 +8,7 @@ class CodeGenerator:
         self._string_counter = 0
         self._scope_stack = ScopeStack()
         self._output_file = "ir.ll"
+        self._runtime_system_file = "runtime_system"
         self._output_file_ptr = None
 
     def generate(self, node, symbol_table):
@@ -15,6 +16,7 @@ class CodeGenerator:
         self._output_file_ptr = open(self._output_file,"w")
         self._symbol_table = symbol_table
         self._register_counter = 0
+        self._add_runtime_system()
         self._generate_constant_string_declarations(node)
         self._generate_global_variable_declarations(node)
         self._generate_procedure_declarations(node)
@@ -32,6 +34,14 @@ class CodeGenerator:
         name = "@string_" + str(self._string_counter)
         self._string_counter += 1
         return name
+
+    def _add_runtime_system(self):
+        with open(self._runtime_system_file,"r") as f:
+            self._put(f.read())
+            self._put("; runtime system")
+            self._put(";" + 100*"-")
+            self._put("; program")
+            self._put("\n")
 
     def _generate_main_header(self):
         self._put("define i32 @main(){")
