@@ -11,6 +11,7 @@ class CodeGenerator:
         self._output_file_ptr = None
 
     def generate(self, node, symbol_table):
+        self._scope_stack.push("main")
         self._output_file_ptr = open(self._output_file,"w")
         self._symbol_table = symbol_table
         self._register_counter = 0
@@ -55,6 +56,7 @@ class CodeGenerator:
             string = node.token.value
             name = self._next_string_name()
             self._generate_constant_string_declaration(name,string)
+            node.ir_string_reference = name
         else:
             for child in node.children:
                 self._generate_constant_string_declarations(child)
@@ -69,15 +71,17 @@ class CodeGenerator:
                 self._generate_procedure_declarations(child)
 
     def _generate(self,node):
-        if node.name_matches("expression"):
-            self._handle_expression(node)
+        self._scope_stack.push_node(node)
+        if node.name_matches("assignment_statement"):
+            self._handle_assignment(node)
         elif node.name_matches("variable_declaration"):
             self._handle_variable_declaration(node,False)
         elif node.name_matches("procedure_declaration"):
-            return
+            pass
         else:
             for child in node.children:
                 self._generate(child)
+        self._scope_stack.pop_node(node)
 
     def _put(self, statement):
         self._output_file_ptr.write(statement + "\n")
@@ -100,21 +104,41 @@ class CodeGenerator:
     def _generate_store(self, src_name, dst_name, src_dtype, dst_dtype):
         self._put("store %s %s, %s %s"%(src_dtype, src_name, dst_dtype, dst_name))
 
-    def _generate_array_store(name,size,dtype,index,value):
+    def _generate_array_store(self,name,size,dtype,index,value):
         ptr = self._generate_getelementptr(name,size,dtype,index)
-        self._generate_store(name,ptr,dtype,dtype+"*")
+        self._generate_store(value,ptr["value"],dtype,ptr["dtype"])
 
     def _generate_load(self, src_name, dst_name, src_dtype):
         self._put("%s = load %s %s"%(dst_name, src_type, src_name))
 
     def _generate_array_load(name,size,dtype,index):
         ptr = self._generate_getelementptr(name,size,dtype,index)
-        self._generate_load(name,ptr,dtype)
+        self._generate_load(name,ptr["value"],dtype)
 
     def _generate_getelementptr(self, name, size, dtype, index):
         result_reg = self._next_register()
         self._put("%s = getelementptr inbounds [%s x %s]* %s, i32 0, i64 %s"%(result_reg,str(size),dtype,name,str(index)))
-        return result_reg
+        return {"value":result_reg,"dtype":dtype+"*"}
+
+    def _generate_i32_to_fp_conversion(self,source_name):
+        dest_name = self._next_register()
+        self._put("%s = sitofp i32 %s to double"%(dest_name,source_name))
+        return {"value":dest_name, "dtype":"double"}
+
+    def _generate_fp_to_i32_conversion(self,source_name):
+        dest_name = self._next_register()
+        self._put("%s = fptosi double %s to i32"%(dest_name,source_name))
+        return {"value":dest_name, "dtype":"i32"}
+
+    def _generate_i1_to_i32_conversion(self,source_name):
+        dest_name = self._next_register()
+        self._put("%s = sext i1 %s to i32"%(dest_name,source_name))
+        return {"value":dest_name, "dtype":"i32"}
+
+    def _generate_i32_to_i1_conversion(self,source_name):
+        dest_name = self._next_register()
+        self._put("%s = icmp eq i32 %s, 0"%(dest_name,source_name))
+        return {"value":dest_name, "dtype":"i1"}
 
     def _generate_procedure_declaration(self,name,args):
         header = "define void %s"%name
@@ -166,6 +190,22 @@ class CodeGenerator:
         operand["dtype"] = "double"
         return operand
 
+    def _convert_dtype_for_assignment(self, source_reference, source_type, dest_type):
+        if source_type == dest_type:
+            return {"value":source_reference, "dtype":source_type}
+        elif source_type == "double" and dest_type == "i32":
+            return self._generate_fp_to_i32_conversion(source_reference)
+        elif source_type == "i32" and dest_type == "double":
+            return self._generate_i32_to_fp_conversion(source_reference)
+        elif source_type == "i1" and dest_type == "i32":
+            return self._generate_i1_to_i32_conversion(source_reference)
+        elif source_type == "i32" and dest_type == "i1":
+            return self._generate_i32_to_i1_conversion(source_reference)
+        elif source_type == "i8**" and dest_type == "i8*":
+            return {"value":source_reference, "dtype":source_type}
+        else:
+            raise Exception("problem!")
+
     def _to_ir_literal(self, node):
         token_value = node.token.value
         token_type = node.token.type
@@ -195,10 +235,12 @@ class CodeGenerator:
                     "dtype": "i1"
                     }
         elif token_type == "STRING":
-            #raise Exception("STRING")
-            print "to ir literal: string"
+            return {
+                    "value":node.ir_string_reference,
+                    "dtype":"i8*",
+                    "size":len(token_value)+1
+                    }
         else:
-            print "DEBUG: " + token_type + " " + token_value
             raise Exception("there's a problem.")
 
     def _get_expected_arguments(self, identifier):
@@ -255,17 +297,28 @@ class CodeGenerator:
             self._generate_variable_alloc(name,dtype)
 
     def _handle_assignment(self, node):
-        """
         destination = node.children[0]
-        expresson = node.children[1]
-        result = self._handle_expression(expression)
-
-        dest_name = self._register_name(destination.children[0].token.value)
-        if len(destination.children) == 2: # array access
-            index = self._register_name(destination.children[1].token.value)
-            self._generate_array
-        """
-        pass
+        expression = node.children[1]
+        dest_name = destination.children[0].token.value
+        current_scope = self._scope_stack.as_string()
+        dest_symbol = self._symbol_table.fetch(dest_name,current_scope)
+        dtype = self._ir_datatype(dest_symbol["data_type"])
+        source = self._handle_expression(expression)
+        if source["dtype"] == "i8*": # in the case of a string constant, get a pointer to the string.
+            source = self._generate_getelementptr(source["value"],source["size"],"i8","0")
+        if dest_symbol["type"] == "array":
+            index = self._handle_expression(destination.children[1])
+            size = dest_symbol["array_length"]
+            if dest_symbol["global"]:
+                array_reference = self._global_name(dest_name)
+            else:
+                array_reference = self._register_name(dest_name)
+            source = self._convert_dtype_for_assignment(source["value"],source["dtype"],dtype)
+            self._generate_array_store(array_reference,size,dtype,index["value"],source["value"])
+        else:
+            dest_register = self._register_name(dest_name)
+            source = self._convert_dtype_for_assignment(source["value"],source["dtype"],dtype)
+            self._generate_store(source["value"], dest_register, source["dtype"], dtype+"*")
 
     def _handle_operation(self,op1,op2,operator):
         dtype = op1["dtype"]

@@ -7,6 +7,7 @@ class ParseTreeNode:
         self.name = name
         self.token = None
         self.children = []
+        self.ir_string_reference = None
 
     def name_matches(self, string):
         return self.name == string
