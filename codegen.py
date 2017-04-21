@@ -6,6 +6,7 @@ class CodeGenerator:
         self._symbol_table = None
         self._register_counter = 0
         self._string_counter = 0
+        self._label_counter = 0
         self._scope_stack = ScopeStack()
         self._output_file = "ir.ll"
         self._runtime_system_file = "runtime_system"
@@ -16,6 +17,8 @@ class CodeGenerator:
         self._output_file_ptr = open(self._output_file,"w")
         self._symbol_table = symbol_table
         self._register_counter = 0
+        self._string_counter = 0
+        self._label_counter = 0
         self._add_runtime_system()
         self._generate_constant_string_declarations(node)
         self._generate_global_variable_declarations(node)
@@ -28,6 +31,11 @@ class CodeGenerator:
     def _next_register(self):
         name = "%r" + str(self._register_counter)
         self._register_counter += 1
+        return name
+
+    def _next_label(self):
+        name = "label_" + str(self._label_counter)
+        self._label_counter += 1
         return name
 
     def _next_string_name(self):
@@ -84,6 +92,8 @@ class CodeGenerator:
         self._scope_stack.push_node(node)
         if node.name_matches("assignment_statement"):
             self._handle_assignment(node)
+        elif node.name_matches("if_statement"):
+            self._handle_if_statement(node)
         elif node.name_matches("variable_declaration"):
             self._handle_variable_declaration(node,False)
         elif node.name_matches("procedure_declaration"):
@@ -119,11 +129,13 @@ class CodeGenerator:
         self._generate_store(value,ptr["value"],dtype,ptr["dtype"])
 
     def _generate_load(self, src_name, dst_name, src_dtype):
-        self._put("%s = load %s %s"%(dst_name, src_type, src_name))
+        self._put("%s = load %s %s"%(dst_name, src_dtype, src_name))
 
-    def _generate_array_load(name,size,dtype,index):
+    def _generate_array_load(self,name,size,dtype,index):
         ptr = self._generate_getelementptr(name,size,dtype,index)
-        self._generate_load(name,ptr["value"],dtype)
+        result_reg = self._next_register()
+        self._generate_load(ptr["value"],result_reg,dtype+"*")
+        return {"value":result_reg,"dtype":dtype}
 
     def _generate_getelementptr(self, name, size, dtype, index):
         result_reg = self._next_register()
@@ -163,10 +175,22 @@ class CodeGenerator:
         self._put("ret void")
         self._put("}")
 
+    def _generate_conditional_branch(self,condition):
+        if_equal = self._next_label();
+        if_unequal = self._next_label();
+        self._put("br i1 %s, label %%%s, label %%%s"%(condition,if_equal,if_unequal))
+        return [if_equal,if_unequal]
+
+    def _generate_unconditional_branch(self, label):
+        self._put("br label %%%s"%label)
+
     def _generate_operation(self,op1,op2,operator):
         result = self._next_register()
         self._put("%s = %s %s %s, %s"%(result,operator,op1["dtype"],op1["value"],op2["value"]))
         return result
+
+    def _generate_label(self, label):
+        self._put(label + ":")
 
     def _global_name(self,identifier):
         return "@" + identifier
@@ -288,7 +312,6 @@ class CodeGenerator:
     def _handle_variable_declaration(self, node, is_global):
         source_name = node.children[1].token.value
         source_dtype = node.children[0].token.value
-
         dtype = self._ir_datatype(source_dtype)
         is_array = len(node.children) == 3
         if is_array and is_global:
@@ -305,6 +328,20 @@ class CodeGenerator:
         else: # not array and not global
             name = self._register_name(source_name)
             self._generate_variable_alloc(name,dtype)
+
+    def _handle_if_statement(self, node):
+        expression = node.children[0]
+        condition = self._handle_expression(expression)
+        [if_eq,if_uneq] = self._generate_conditional_branch(condition["value"])
+        continu = self._next_label()
+        self._generate_label(if_eq)
+        self._generate(node.children[1])
+        self._generate_unconditional_branch(continu)
+        self._generate_label(if_uneq)
+        if len(node.children) == 3:
+            self._generate(node.children[2])
+        self._generate_unconditional_branch(continu)
+        self._generate_label(continu)
 
     def _handle_assignment(self, node):
         destination = node.children[0]
@@ -361,14 +398,11 @@ class CodeGenerator:
             if symbol["type"] == "array":
                 index = self._handle_expression(node.children[1])
                 size = symbol["array_length"]
-                result = self._generate_array_load(name,size,dtype,index["value"]) #name,size,dtype,index
+                return self._generate_array_load(name,size,dtype,index["value"]) #name,size,dtype,index
             else:
                 dst_name = self._next_register()
-                result = self._generate_load(name,dst_name,dtype) #src_name, dst_name, src_dtype
-            return {
-                    "value": result,
-                    "dtype": dtype
-                    }
+                self._generate_load(name,dst_name,dtype+"*") #src_name, dst_name, src_dtype
+                return {"value": dst_name, "dtype": dtype}
         elif node.is_literal():
             return self._to_ir_literal(node)
         else:

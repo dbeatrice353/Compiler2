@@ -55,4 +55,14 @@ begin
   s1    := "test";
   s2    := "tomato";
 
+  if(b == ba[0])then
+    c := '4';
+  else
+    c := '2';
+  end if
+
+  if(b == false)then
+    i := 5;
+  end if
+
 end program.
