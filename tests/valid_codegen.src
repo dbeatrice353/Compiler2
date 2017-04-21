@@ -55,6 +55,7 @@ begin
   s1    := "test";
   s2    := "tomato";
 
+  /*
   if(b == ba[0])then
     c := '4';
   else
@@ -64,5 +65,10 @@ begin
   if(b == false)then
     i := 5;
   end if
+  */
+
+  for(i:=0;i < 10)
+    i := i + 1;
+  end for
 
 end program.

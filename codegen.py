@@ -92,6 +92,8 @@ class CodeGenerator:
         self._scope_stack.push_node(node)
         if node.name_matches("assignment_statement"):
             self._handle_assignment(node)
+        elif node.name_matches("loop_statement"):
+            self._handle_loop(node)
         elif node.name_matches("if_statement"):
             self._handle_if_statement(node)
         elif node.name_matches("variable_declaration"):
@@ -342,6 +344,22 @@ class CodeGenerator:
             self._generate(node.children[2])
         self._generate_unconditional_branch(continu)
         self._generate_label(continu)
+
+    def _handle_loop(self, node):
+        assignment = node.children[0]
+        expression = node.children[1]
+        self._handle_assignment(assignment)
+        expression_label = self._next_label()
+        self._generate_unconditional_branch(expression_label)
+        self._generate_label(expression_label)
+        result = self._handle_expression(expression)
+        [if_true,if_false] = self._generate_conditional_branch(result["value"])
+        self._generate_label(if_true)
+        if len(node.children) > 2:
+            for child in node.children[2:]:
+                self._generate(child)
+        self._generate_unconditional_branch(expression_label)
+        self._generate_label(if_false)
 
     def _handle_assignment(self, node):
         destination = node.children[0]
