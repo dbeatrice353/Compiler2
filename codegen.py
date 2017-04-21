@@ -334,12 +334,12 @@ class CodeGenerator:
     def _handle_if_statement(self, node):
         expression = node.children[0]
         condition = self._handle_expression(expression)
-        [if_eq,if_uneq] = self._generate_conditional_branch(condition["value"])
+        [if_true,if_false] = self._generate_conditional_branch(condition["value"])
         continu = self._next_label()
-        self._generate_label(if_eq)
+        self._generate_label(if_true)
         self._generate(node.children[1])
         self._generate_unconditional_branch(continu)
-        self._generate_label(if_uneq)
+        self._generate_label(if_false)
         if len(node.children) == 3:
             self._generate(node.children[2])
         self._generate_unconditional_branch(continu)
