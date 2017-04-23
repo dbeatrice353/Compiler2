@@ -27,8 +27,8 @@ FP_IR_OPERATIONS = {
 INT_IR_OPERATIONS = {
     "+":"add nsw",
     "-":"sub nsw",
-    "*":"mult nsw",
-    "/":"sdiv nsw",
+    "*":"mul nsw",
+    "/":"sdiv ",
     ">":"icmp sgt",
     "<":"icmp slt",
     "<=":"icmp sle",

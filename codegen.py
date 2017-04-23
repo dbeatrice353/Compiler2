@@ -83,7 +83,9 @@ class CodeGenerator:
         if node.name_matches('declaration'):
             child = node.children[0]
             if child.name_matches('procedure_declaration'):
+                self._scope_stack.push_node(child)
                 self._handle_procedure_declaration(child)
+                self._scope_stack.pop_node(child)
         else:
             for child in node.children:
                 self._generate_procedure_declarations(child)
@@ -145,7 +147,7 @@ class CodeGenerator:
 
     def _generate_getelementptr(self, name, size, dtype, index):
         result_reg = self._next_register()
-        self._put("%s = getelementptr inbounds [%s x %s]* %s, i32 0, i64 %s"%(result_reg,str(size),dtype,name,str(index)))
+        self._put("%s = getelementptr inbounds [%s x %s]* %s, i32 0, i32 %s"%(result_reg,str(size),dtype,name,str(index)))
         return {"value":result_reg,"dtype":dtype+"*"}
 
     def _generate_i32_to_fp_conversion(self,source_name):
@@ -271,6 +273,8 @@ class CodeGenerator:
                         "dtype": "i32"
                         }
         elif token_type == "CHARACTER":
+            if token_value == "":
+                token_value = "\0"
             return {
                     "value": str(ord(token_value)),
                     "dtype": "i8"
@@ -308,14 +312,14 @@ class CodeGenerator:
     def _handle_type_conversions(self,op1,op2,operator):
         if operator in constants.EXPRESSION_OPS: # ['&','|']
             if op1["dtype"] != "i1":
-                op1 = self._i32_to_i1(op1)
+                op1 = self._generate_i32_to_i1_conversion(op1["value"])
             if op2["dtype"] != "i1":
-                op2 = self._i32_to_i1(op2)
+                op2 = self._generate_i32_to_i1_conversion(op2["value"])
         else:
             if op1["dtype"] == "double" and op2["dtype"] == "i32":
-                op2 = self._i32_to_double(op2)
+                op2 = self._generate_i32_to_fp_conversion(op2["value"])
             elif op2["dtype"] == "double" and op1["dtype"] == "i32":
-                op1 = self._i32_to_double(op1)
+                op1 = self._generate_i32_to_fp_conversion(op1["value"])
             else:
                 pass
         return [op1,op2]

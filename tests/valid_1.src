@@ -44,7 +44,7 @@ begin
       // this is another comment
       foo[3] := 3 + 4.5;
       foo[4] := 7/7/7*7*55*234.345*an_integer_var*foo[4];
-      foo := foo + 33;
+      //foo := foo + 33;
     end if
   else
     putString("THIS_IS_A_TEST");
