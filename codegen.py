@@ -98,6 +98,8 @@ class CodeGenerator:
             self._handle_if_statement(node)
         elif node.name_matches("variable_declaration"):
             self._handle_variable_declaration(node,False)
+        elif node.name_matches("procedure_call"):
+            self._handle_procedure_call(node)
         elif node.name_matches("procedure_declaration"):
             pass
         else:
@@ -190,6 +192,12 @@ class CodeGenerator:
         result = self._next_register()
         self._put("%s = %s %s %s, %s"%(result,operator,op1["dtype"],op1["value"],op2["value"]))
         return result
+
+    def _generate_procedure_call(self,proc_name, args):
+        call = "call void %s("%proc_name
+        call += ", ".join(map(lambda arg: arg["dtype"] + " " + arg["value"], args))
+        call += ")"
+        self._put(call)
 
     def _generate_label(self, label):
         self._put(label + ":")
@@ -284,7 +292,8 @@ class CodeGenerator:
         args = []
         for symbol in arg_symbols:
             data_type = self._ir_datatype(symbol["data_type"])
-            if (symbol["direction"] != "in" and symbol["data_type"] != "string") or symbol["type"] == "array":
+            #if (symbol["direction"] != "in" and symbol["data_type"] != "string") or symbol["type"] == "array":
+            if symbol["direction"] != "in" or symbol["type"] == "array":
                 data_type = data_type + "*"
             name = self._register_name(symbol["identifier"])
             args.append({"name":name,"dtype":data_type})
@@ -307,9 +316,10 @@ class CodeGenerator:
 
     def _handle_procedure_declaration(self, node):
         proc_header = node.children[0]
-        identifier = self._proc_name(proc_header.children[0].token.value)
+        identifier = proc_header.children[0].token.value
         args = self._get_expected_arguments(identifier)
-        self._generate_procedure_declaration(identifier, args)
+        ir_name = self._proc_name(identifier)
+        self._generate_procedure_declaration(ir_name, args)
 
     def _handle_variable_declaration(self, node, is_global):
         source_name = node.children[1].token.value
@@ -344,6 +354,76 @@ class CodeGenerator:
             self._generate(node.children[2])
         self._generate_unconditional_branch(continu)
         self._generate_label(continu)
+
+    def _obtain_identifier(self, node):
+        if len(node.children):
+            return self._obtain_identifier(node.children[0])
+        else:
+            scope = self._scope_stack.as_string()
+            name = node.token.value
+            symbol = self._symbol_table.fetch(name,scope)
+            identifier = {}
+            identifier["dtype"] = self._ir_datatype(symbol["data_type"])
+            if symbol["type"] == "array":
+                identifier["size"] = symbol["array_length"]
+            else:
+                identifier["dtype"] += "*"
+            if symbol["global"]:
+                identifier["value"] = self._global_name(name)
+            else:
+                identifier["value"] = self._register_name(name)
+            return identifier
+
+    def _determine_argument(self, node, expected_arg):
+        scope = self._scope_stack.as_string()
+        if expected_arg["direction"] == "in":
+            if expected_arg["type"] == "array":
+                i = self._obtain_identifier(node)
+                return self._generate_getelementptr(i["value"],i["size"],i["dtype"],"0")
+            else: # one-dimensional (variable or const)
+                if expected_arg["data_type"] == "string":
+                    temp = self._handle_expression(node)
+                    print temp
+                    return temp
+                else: # non-string
+                    return self._handle_expression(node)
+        else: # out or inout
+            if expected_arg["type"] == "array":
+                i = self._obtain_identifier(node)
+                return self._generate_getelementptr(i["value"],i["size"],i["dtype"],"0")
+            else: # one-dimensional (variable or const)
+                if expected_arg["data_type"] == "string":
+                    temp = self._handle_expression(node)
+                    print temp
+                    return temp
+                else: # non-string
+                    return self._obtain_identifier(node)
+
+
+    # call void @_Z3fooiPfPKc(i32 %2, float* %3, i8* %4)
+    # void foo(int i, float f[10], const char* s)
+    def _handle_procedure_call(self, node):
+        identifier = node.children[0]
+        args = []
+        scope = self._scope_stack.as_string()
+        expected_args = self._symbol_table.get_expected_arguments(identifier.token.value)
+        arg_index = 0
+        # execute any loads or expressions necessary to produce the arguments
+        if len(node.children) == 2:
+            arg_list = node.children[1]
+            while True:
+                arg_node = arg_list.children[0]
+                expected_arg = expected_args[arg_index]
+                arg_index += 1
+                arg = self._determine_argument(arg_node,expected_arg)
+                args.append(arg)
+                if len(arg_list.children) == 2:
+                    arg_list = arg_list.children[1]
+                else:
+                    break
+        # print the code
+        proc_name = self._proc_name(identifier.token.value)
+        self._generate_procedure_call(proc_name,args)
 
     def _handle_loop(self, node):
         assignment = node.children[0]
@@ -413,10 +493,13 @@ class CodeGenerator:
             symbol = self._symbol_table.fetch(identifier.token.value,self._scope_stack.as_string())
             name = self._register_name(symbol["identifier"])
             dtype = self._ir_datatype(symbol["data_type"])
+            size = symbol["array_length"]
             if symbol["type"] == "array":
-                index = self._handle_expression(node.children[1])
-                size = symbol["array_length"]
-                return self._generate_array_load(name,size,dtype,index["value"]) #name,size,dtype,index
+                if len(node.children) == 2:
+                    index = self._handle_expression(node.children[1])
+                    return self._generate_array_load(name,size,dtype,index["value"]) #name,size,dtype,index
+                else:
+                    return self._generate_getelementptr(name,size,dtype,"0") #name,size,dtype,index
             else:
                 dst_name = self._next_register()
                 self._generate_load(name,dst_name,dtype+"*") #src_name, dst_name, src_dtype

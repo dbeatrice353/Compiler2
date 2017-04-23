@@ -9,10 +9,13 @@ program test_program is
   float fa[10];
   integer i;
   integer ia[5];
+  integer i_ten[10];
   char c;
   char ca[20];
+  char c_ten[10];
   bool b;
   bool ba[15];
+  bool b_ten[10];
   string s1;
   string s2;
 
@@ -44,6 +47,20 @@ program test_program is
 
 begin
 
+  i := 4;
+  f := 5.678;
+  b := false;
+  s1 := "test";
+
+  p1(ia[0], f, b, c, s1);
+  p2(i, f, b, c, s1);
+  p3(i, f, b, c, s1);
+  p4(i_ten, fa, b_ten, c_ten);
+  p5(i_ten, fa, b_ten, c_ten);
+  p6(i_ten, fa, b_ten, c_ten);
+  p1(5 - i, 3.14 + f/2, true | false, 'f', "foo");
+
+  /*
   f     := 3.14 + 2.45/5;
   fa[0] := 4.56 - 3;
   i     := 2 + (9 - 1) + 5;
@@ -68,5 +85,5 @@ begin
   for(i:=0;i < 10)
     i := i + 1;
   end for
-
+  */
 end program.
