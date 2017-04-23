@@ -100,6 +100,8 @@ class CodeGenerator:
             self._handle_variable_declaration(node,False)
         elif node.name_matches("procedure_call"):
             self._handle_procedure_call(node)
+        elif node.name_matches("return_statement"):
+            self._generate_return();
         elif node.name_matches("procedure_declaration"):
             pass
         else:
@@ -166,7 +168,7 @@ class CodeGenerator:
         self._put("%s = icmp eq i32 %s, 0"%(dest_name,source_name))
         return {"value":dest_name, "dtype":"i1"}
 
-    def _generate_procedure_declaration(self,name,args):
+    def _generate_procedure_declaration(self,name,args,body):
         header = "define void %s"%name
         arg_strings = map(lambda a: "%s %s"%(a["dtype"],a["name"]),args)
         arguments = "(" + ", ".join(arg_strings) + ")"
@@ -176,6 +178,7 @@ class CodeGenerator:
             self._generate_variable_alloc(arg["reg_name"],arg["dtype"])
         for arg in args:
             self._generate_store(arg["name"],arg["reg_name"],arg["dtype"],arg["dtype"]+"*")
+        self._generate(body)
         self._put("ret void")
         self._put("}")
 
@@ -198,6 +201,9 @@ class CodeGenerator:
         call += ", ".join(map(lambda arg: arg["dtype"] + " " + arg["value"], args))
         call += ")"
         self._put(call)
+
+    def _generate_return(self):
+        self._put("ret void");
 
     def _generate_label(self, label):
         self._put(label + ":")
@@ -316,10 +322,11 @@ class CodeGenerator:
 
     def _handle_procedure_declaration(self, node):
         proc_header = node.children[0]
+        proc_body = node.children[1]
         identifier = proc_header.children[0].token.value
         args = self._get_expected_arguments(identifier)
         ir_name = self._proc_name(identifier)
-        self._generate_procedure_declaration(ir_name, args)
+        self._generate_procedure_declaration(ir_name, args, proc_body)
 
     def _handle_variable_declaration(self, node, is_global):
         source_name = node.children[1].token.value
@@ -382,9 +389,7 @@ class CodeGenerator:
                 return self._generate_getelementptr(i["value"],i["size"],i["dtype"],"0")
             else: # one-dimensional (variable or const)
                 if expected_arg["data_type"] == "string":
-                    temp = self._handle_expression(node)
-                    print temp
-                    return temp
+                    return self._handle_expression(node)
                 else: # non-string
                     return self._handle_expression(node)
         else: # out or inout
@@ -393,9 +398,7 @@ class CodeGenerator:
                 return self._generate_getelementptr(i["value"],i["size"],i["dtype"],"0")
             else: # one-dimensional (variable or const)
                 if expected_arg["data_type"] == "string":
-                    temp = self._handle_expression(node)
-                    print temp
-                    return temp
+                    return self._obtain_identifier(node)
                 else: # non-string
                     return self._obtain_identifier(node)
 
@@ -450,7 +453,15 @@ class CodeGenerator:
         dtype = self._ir_datatype(dest_symbol["data_type"])
         source = self._handle_expression(expression)
         if source["dtype"] == "i8*": # in the case of a string constant, get a pointer to the string.
-            source = self._generate_getelementptr(source["value"],source["size"],"i8","0")
+            #print source
+            #source = self._generate_getelementptr(source["value"],source["size"],"i8","0")
+            # src_name, dst_name, src_dtype, dst_dtype
+            #if dest_symbol["global"]:
+            #    dest = self._global_name(dest_symbol["identifier"])
+            #else:
+            #    dest = self._register_name(dest_symbol["identifier"])
+            #self._generate_store(source["value"],dest,"i8*","i8*")
+            pass
         if dest_symbol["type"] == "array":
             index = self._handle_expression(destination.children[1])
             size = dest_symbol["array_length"]
@@ -505,6 +516,12 @@ class CodeGenerator:
                 self._generate_load(name,dst_name,dtype+"*") #src_name, dst_name, src_dtype
                 return {"value": dst_name, "dtype": dtype}
         elif node.is_literal():
-            return self._to_ir_literal(node)
+            if node.token.type_matches("STRING"):
+                name = node.ir_string_reference
+                size = len(node.token.value)+1
+                dtype = "i8"
+                return self._generate_getelementptr(name,size,dtype,"0")
+            else:
+                return self._to_ir_literal(node)
         else:
             return self._handle_expression(node.children[0])
