@@ -1,5 +1,17 @@
 SYMBOL_TABLE_ENTRIES = [
         {
+            'identifier':'putnewline',
+            'type': 'procedure',
+            'scope':'main',
+            'data_type':'',
+            'array_length':None,
+            'direction':None,
+            'is_argument':False,
+            'definition_line':-1,
+            'initialized':False,
+            'global': False
+        },
+        {
             'identifier':'getchar',
             'type': 'procedure',
             'scope':'main',

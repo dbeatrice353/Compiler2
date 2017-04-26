@@ -3,14 +3,39 @@
 
 program test_program is
 
+  integer i;
+  float f;
+  bool b;
+  char c;
+  string s;
+
+  char nl;
+
 begin
 
-  putInteger(4);
-  putChar('_');
-  putFloat(3.14);
-  putChar('_');
-  putBool(true);
-  putChar('_');
-  putString("test");
+  putnewline();
+  putstring("this");
+  putnewline();
+  putstring("is");
+  putnewline();
+  putstring("a");
+  putnewline();
+  putstring("test");
+  putnewline();
+  /*
+  i := 5;
+  f := 4.56;
+  b := false;
+  c := 'w';
+  s := "foobarspam";
+
+  putInteger(i);
+  putChar(',');
+  putFloat(f);
+  putChar(',');
+  putBool(b);
+  putChar(',');
+  putString(s);
+  */
 
 end program.
