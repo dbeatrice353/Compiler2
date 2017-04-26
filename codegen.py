@@ -145,9 +145,20 @@ class CodeGenerator:
         self._generate_load(ptr["value"],result_reg,dtype+"*")
         return {"value":result_reg,"dtype":dtype}
 
+    def _generate_array_load_from_arg(self,name,dtype,index):
+        ptr = self._generate_getelementptr_from_ptr(name,dtype,index)
+        result_reg = self._next_register()
+        self._generate_load(ptr["value"],result_reg,dtype+"*")
+        return {"value":result_reg,"dtype":dtype}
+
     def _generate_getelementptr(self, name, size, dtype, index):
         result_reg = self._next_register()
         self._put("%s = getelementptr inbounds [%s x %s]* %s, i32 0, i32 %s"%(result_reg,str(size),dtype,name,str(index)))
+        return {"value":result_reg,"dtype":dtype+"*"}
+
+    def _generate_getelementptr_from_ptr(self, name, dtype, index):
+        result_reg = self._next_register()
+        self._put("%s = getelementptr inbounds %s* %s, i32 %s"%(result_reg,dtype,name,str(index)))
         return {"value":result_reg,"dtype":dtype+"*"}
 
     def _generate_i32_to_fp_conversion(self,source_name):
@@ -367,11 +378,11 @@ class CodeGenerator:
         self._generate_label(continu)
 
     def _obtain_identifier(self, node):
-        if len(node.children):
+        if not node.name_matches("name"):
             return self._obtain_identifier(node.children[0])
         else:
             scope = self._scope_stack.as_string()
-            name = node.token.value
+            name = node.children[0].token.value
             symbol = self._symbol_table.fetch(name,scope)
             identifier = {}
             identifier["dtype"] = self._ir_datatype(symbol["data_type"])
@@ -384,6 +395,24 @@ class CodeGenerator:
             else:
                 identifier["value"] = self._register_name(name)
             return identifier
+
+    def _obtain_pointer(self, node):
+        if not node.name_matches("name"):
+            return self._obtain_pointer(node.children[0])
+        else:
+            identifier = node.children[0].token.value
+            scope = self._scope_stack.as_string()
+            symbol = self._symbol_table.fetch(identifier, scope)
+            dtype = self._ir_datatype(symbol["data_type"])
+            if symbol["global"]:
+                ir_name = self._global_name(identifier)
+            else:
+                ir_name = self._register_name(identifier)
+            if symbol["type"] == "array":
+                size = symbol["array_length"]
+                return self._generate_getelementptr(ir_name,size,dtype,"0")
+            else:
+                return {"value":ir_name, "dtype":dtype+"*"}
 
     def _determine_argument(self, node, expected_arg):
         scope = self._scope_stack.as_string()
@@ -404,7 +433,7 @@ class CodeGenerator:
                 if expected_arg["data_type"] == "string":
                     return self._obtain_identifier(node)
                 else: # non-string
-                    return self._obtain_identifier(node)
+                    return self._obtain_pointer(node)
 
 
     # call void @_Z3fooiPfPKc(i32 %2, float* %3, i8* %4)
@@ -512,7 +541,10 @@ class CodeGenerator:
             if symbol["type"] == "array":
                 if len(node.children) == 2:
                     index = self._handle_expression(node.children[1])
-                    return self._generate_array_load(name,size,dtype,index["value"]) #name,size,dtype,index
+                    if symbol["is_argument"]:
+                        return self._generate_array_load_from_arg(name,dtype,index["value"]) #name,size,dtype,index
+                    else:
+                        return self._generate_array_load(name,size,dtype,index["value"]) #name,size,dtype,index
                 else:
                     return self._generate_getelementptr(name,size,dtype,"0") #name,size,dtype,index
             else:

@@ -1,0 +1,16 @@
+
+
+
+program test_program is
+
+begin
+
+  putInteger(4);
+  putChar('_');
+  putFloat(3.14);
+  putChar('_');
+  putBool(true);
+  putChar('_');
+  putString("test");
+
+end program.
