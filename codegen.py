@@ -187,10 +187,13 @@ class CodeGenerator:
         arguments = "(" + ", ".join(arg_strings) + ")"
         self._put(header + arguments + "{")
         for arg in args:
-            arg["reg_name"] = self._next_register()
-            self._generate_variable_alloc(arg["reg_name"],arg["dtype"])
-        for arg in args:
-            self._generate_store(arg["name"],arg["reg_name"],arg["dtype"],arg["dtype"]+"*")
+            if arg["by_val"]:
+                self._generate_variable_alloc(arg["real_name"],arg["dtype"])
+                self._generate_store(arg["name"],arg["real_name"],arg["dtype"],arg["dtype"]+"*")
+            else:
+                arg["reg_name"] = self._next_register()
+                self._generate_variable_alloc(arg["reg_name"],arg["dtype"])
+                self._generate_store(arg["name"],arg["reg_name"],arg["dtype"],arg["dtype"]+"*")
         self._generate(body)
         self._put("ret void")
         self._put("}")
@@ -317,7 +320,14 @@ class CodeGenerator:
             if symbol["direction"] != "in" or symbol["type"] == "array":
                 data_type = data_type + "*"
             name = self._register_name(symbol["identifier"])
-            args.append({"name":name,"dtype":data_type})
+            if symbol["direction"] == "in" and symbol["type"] == "variable":
+                by_val = True
+                real_name = name
+                name += "_"
+            else:
+                by_val = False
+                real_name = None
+            args.append({"name":name,"real_name":real_name,"dtype":data_type,"by_val":by_val})
         return args
 
     def _handle_type_conversions(self,op1,op2,operator):
@@ -366,6 +376,7 @@ class CodeGenerator:
     def _handle_if_statement(self, node):
         expression = node.children[0]
         condition = self._handle_expression(expression)
+        self._put(";--- if statement ---")
         [if_true,if_false] = self._generate_conditional_branch(condition["value"])
         continu = self._next_label()
         self._generate_label(if_true)
@@ -410,7 +421,11 @@ class CodeGenerator:
                 ir_name = self._register_name(identifier)
             if symbol["type"] == "array":
                 size = symbol["array_length"]
-                return self._generate_getelementptr(ir_name,size,dtype,"0")
+                if len(node.children) == 2:
+                    index = self._handle_expression(node.children[1])
+                    return self._generate_getelementptr(ir_name,size,dtype,index["value"])
+                else:
+                    return self._generate_getelementptr(ir_name,size,dtype,"0")
             else:
                 return {"value":ir_name, "dtype":dtype+"*"}
 
@@ -466,6 +481,7 @@ class CodeGenerator:
         expression = node.children[1]
         self._handle_assignment(assignment)
         expression_label = self._next_label()
+        self._put(";--- loop statement ---")
         self._generate_unconditional_branch(expression_label)
         self._generate_label(expression_label)
         result = self._handle_expression(expression)

@@ -1,0 +1,27 @@
+
+
+program valid_functional is
+
+  integer i;
+  integer ia[10];
+
+  float f;
+  float fa[10];
+
+  bool b;
+  bool ba[10];
+
+  procedure report(integer test_id in, bool result in)
+  begin
+    putinteger(test_id);
+    putchar(':');
+    putbool(result);
+    putnewline();
+  end procedure
+
+begin
+
+  report(12,false);
+  report(-3,true);
+
+end program.
