@@ -14,7 +14,7 @@ class Character:
             ascii_value = ord(value)
             self._is_letter = (ascii_value > 96 and ascii_value < 123) or (ascii_value > 64 and ascii_value < 91)
             self._is_digit = ascii_value > 47 and ascii_value < 58
-            self._valid_string_componant = self._is_letter or self._is_digit or value in ['_',',',';',':','.','\'']
+            self._valid_string_componant = self._is_letter or self._is_digit or value in ['_',',',';',':','.','\'',' ']
             self._valid_character = self._is_letter or self._is_digit or value in ['_',',',';',':','.','"']
 
     def matches(self,c):
@@ -269,8 +269,8 @@ class Scanner:
             elif c.matches(':'):
                 self._scan_assignment()
             else:
-                if not c.matches_any(['\n','\t',' ']):
-                    report_invalid_character(c)
+                if ord(c.value) < 32: # whitespace
+                    pass
                 self._step()
 
     def _scan_string(self):
