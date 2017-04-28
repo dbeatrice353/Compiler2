@@ -55,7 +55,7 @@ class SymbolTable:
                 return None
 
     def _fetch(self,identifier,scope):
-        results = filter( lambda record: record['identifier']==identifier and record['scope']==scope, self._symbols)
+        results = filter( lambda record: record['identifier']==identifier and (record['scope']==scope or record["global"]), self._symbols)
         if len(results):
             return results[0]
         else:
@@ -84,9 +84,17 @@ class SymbolTable:
             self._scope_stack.pop()
 
     def printable_string(self):
-        string = '%-20s%-20s%-20s%-20s%-20s%-20s%-20s%-20s\n'%('identifier','type','data_type','array_length','scope','is_argument','direction','initialized')
+        string = '%-20s%-20s%-20s%-20s%-20s%-20s%-20s%-20s%-20s\n'%('identifier','type','data_type','array_length','scope','is_argument','direction','initialized','global')
         for s in self._symbols:
-            string += '%-20s%-20s%-20s%-20s%-20s%-20s%-20s%-20s\n'%(str(s['identifier']),str(s['type']),str(s['data_type']),str(s['array_length']),str(s['scope']),str(s['is_argument']),str(s['direction']),str(s['initialized']))
+            string += '%-20s%-20s%-20s%-20s%-20s%-20s%-20s%-20s%-20s\n'%(str(s['identifier']),
+                                                                    str(s['type']),
+                                                                    str(s['data_type']),
+                                                                    str(s['array_length']),
+                                                                    str(s['scope']),
+                                                                    str(s['is_argument']),
+                                                                    str(s['direction']),
+                                                                    str(s['initialized']),
+                                                                    str(s['global']))
         return string
 
     def get_expected_arguments(self,identifier):
