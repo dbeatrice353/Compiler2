@@ -203,6 +203,8 @@ class Parser:
                 procedure_body.add_child(self._parse_statement())
         self._get_token_by_value('end')
         self._get_token_by_value('procedure')
+        if self._next_token_value_matches(';'): # optional line terminator
+            self._next()
         return procedure_body
 
     def _parse_variable_declaration(self):
@@ -271,6 +273,8 @@ class Parser:
                     else_.add_child(self._parse_statement())
         self._get_token_by_value('end')
         self._get_token_by_value('if')
+        if self._next_token_value_matches(';'): # optional line terminator
+            self._next()
         return if_statement
 
     def _parse_loop(self):
@@ -288,6 +292,8 @@ class Parser:
                 loop_statement.add_child(self._parse_statement())
         self._get_token_by_value('end')
         self._get_token_by_value('for')
+        if self._next_token_value_matches(';'): # optional line terminator
+            self._next()
         return loop_statement
 
     def _parse_return(self):
