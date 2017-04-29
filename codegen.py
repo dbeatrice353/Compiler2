@@ -21,6 +21,7 @@ class CodeGenerator:
         self._label_counter = 0
         self._add_runtime_system()
         self._generate_constant_string_declarations(node)
+        self._generate_vector_operation_globals()
         self._generate_global_variable_declarations(node)
         self._generate_procedure_declarations(node)
         self._generate_main_header()
@@ -59,6 +60,10 @@ class CodeGenerator:
     def _generate_main_footer(self):
         self._put("ret i32 0")
         self._put("}")
+
+    def _generate_vector_operation_globals(self):
+        self._put("@i_697476643 = common global i32 0")
+        self._put("@max_697476643 = common global i32 0")
 
     def _generate_global_variable_declarations(self,node):
         if node.name_matches('declaration'):
@@ -528,7 +533,10 @@ class CodeGenerator:
             else:
                 self._generate_array_store(array_reference,size,dtype,index["value"],source["value"])
         else:
-            dest_register = self._register_name(dest_name)
+            if dest_symbol["global"]:
+                dest_register = self._global_name(dest_name)
+            else:
+                dest_register = self._register_name(dest_name)
             source = self._convert_dtype_for_assignment(source["value"],source["dtype"],dtype)
             self._generate_store(source["value"], dest_register, source["dtype"], dtype+"*")
 
@@ -558,7 +566,10 @@ class CodeGenerator:
         elif node.name_matches('name'):
             identifier = node.children[0]
             symbol = self._symbol_table.fetch(identifier.token.value,self._scope_stack.as_string())
-            name = self._register_name(symbol["identifier"])
+            if symbol["global"]:
+                name = self._global_name(symbol["identifier"])
+            else:
+                name = self._register_name(symbol["identifier"])
             dtype = self._ir_datatype(symbol["data_type"])
             size = symbol["array_length"]
             if symbol["type"] == "array":
