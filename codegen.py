@@ -11,10 +11,11 @@ class CodeGenerator:
         self._output_file = "ir.ll"
         self._runtime_system_file = "runtime_system"
         self._output_file_ptr = None
+        self._output = ""
 
     def generate(self, node, symbol_table):
         self._scope_stack.push("main")
-        self._output_file_ptr = open(self._output_file,"w")
+        #self._output_file_ptr = open(self._output_file,"w")
         self._symbol_table = symbol_table
         self._register_counter = 0
         self._string_counter = 0
@@ -29,7 +30,8 @@ class CodeGenerator:
         self._generate(node)
         self._generate_cleanup_heap()
         self._generate_main_footer()
-        self._output_file_ptr.close()
+        #self._output_file_ptr.close()
+        return self._output
 
     def _next_register(self):
         name = "%r" + str(self._register_counter)
@@ -119,7 +121,8 @@ class CodeGenerator:
         self._scope_stack.pop_node(node)
 
     def _put(self, statement):
-        self._output_file_ptr.write(statement + "\n")
+        self._output += statement + "\n";
+        #self._output_file_ptr.write(statement + "\n")
 
     def _generate_constant_string_declaration(self, name, string):
         self._put("%s = private unnamed_addr constant [%i x i8] c\"%s\\00\""%(name,len(string)+1,string))
