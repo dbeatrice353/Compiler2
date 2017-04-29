@@ -2,6 +2,7 @@ from scanner import Scanner
 from parser import Parser
 from symboltable import SymbolTable
 from semanticanalyzer import SemanticAnalyzer
+from unvectorizer import Unvectorizer
 from codegen import CodeGenerator
 import sys
 

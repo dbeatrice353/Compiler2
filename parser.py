@@ -109,6 +109,14 @@ class Parser:
         self._current_token_index = 0
         return self._parse_program()
 
+    def parse_unvectorization_template(self,tokens):
+        self._tokens = tokens
+        self._current_token_index = 0
+        assignment_1 = self._parse_statement()
+        assignment_2 = self._parse_statement()
+        loop = self._parse_loop()
+        return [assignment_1, assignment_2, loop]
+
     def _parse_program(self):
         program = ParseTreeNode('program')
         self.root = program

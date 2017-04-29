@@ -1,0 +1,13 @@
+
+
+
+program test_program is
+  integer i;
+  integer j;
+begin
+  j := 10;
+  i := 0;
+  for(i := i + 1; i < 10)
+    j := j - 1;
+  end for
+end program.
