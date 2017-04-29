@@ -138,6 +138,10 @@ class CodeGenerator:
         ptr = self._generate_getelementptr(name,size,dtype,index)
         self._generate_store(value,ptr["value"],dtype,ptr["dtype"])
 
+    def _generate_array_store_from_ptr(self,name,dtype,index,value):
+        ptr = self._generate_getelementptr_from_ptr(name,dtype,index)
+        self._generate_store(value,ptr["value"],dtype,ptr["dtype"])
+
     def _generate_load(self, src_name, dst_name, src_dtype):
         self._put("%s = load %s %s"%(dst_name, src_dtype, src_name))
 
@@ -509,15 +513,7 @@ class CodeGenerator:
         dest_symbol = self._symbol_table.fetch(dest_name,current_scope)
         dtype = self._ir_datatype(dest_symbol["data_type"])
         source = self._handle_expression(expression)
-        if source["dtype"] == "i8*": # in the case of a string constant, get a pointer to the string.
-            #print source
-            #source = self._generate_getelementptr(source["value"],source["size"],"i8","0")
-            # src_name, dst_name, src_dtype, dst_dtype
-            #if dest_symbol["global"]:
-            #    dest = self._global_name(dest_symbol["identifier"])
-            #else:
-            #    dest = self._register_name(dest_symbol["identifier"])
-            #self._generate_store(source["value"],dest,"i8*","i8*")
+        if source["dtype"] == "i8*":
             pass
         if dest_symbol["type"] == "array":
             index = self._handle_expression(destination.children[1])
@@ -527,7 +523,10 @@ class CodeGenerator:
             else:
                 array_reference = self._register_name(dest_name)
             source = self._convert_dtype_for_assignment(source["value"],source["dtype"],dtype)
-            self._generate_array_store(array_reference,size,dtype,index["value"],source["value"])
+            if dest_symbol["is_argument"]:
+                self._generate_array_store_from_ptr(array_reference,dtype,index["value"],source["value"])
+            else:
+                self._generate_array_store(array_reference,size,dtype,index["value"],source["value"])
         else:
             dest_register = self._register_name(dest_name)
             source = self._convert_dtype_for_assignment(source["value"],source["dtype"],dtype)

@@ -38,11 +38,21 @@ program test_program is
   end procedure
 
   procedure p5(integer i[10] out, float f[10] out, bool b[10] out, char c[10] out)
+    integer j;
   begin
+    for(j:=0;j<10)
+      f[j] := 3.14;
+      j := j+1;
+    end for
   end procedure
 
   procedure p6(integer i[10] inout, float f[10] inout, bool b[10] inout, char c[10] inout)
+    integer j;
   begin
+    for(j:=0;j<10)
+      f[j] := 3.14;
+      j := j+1;
+    end for
   end procedure
 
 begin
@@ -60,7 +70,6 @@ begin
   p6(i_ten, fa, b_ten, c_ten);
   p1(5 - i, 3.14 + f/2, true | false, 'f', "foo");
 
-  /*
   f     := 3.14 + 2.45/5;
   fa[0] := 4.56 - 3;
   i     := 2 + (9 - 1) + 5;
@@ -85,5 +94,4 @@ begin
   for(i:=0;i < 10)
     i := i + 1;
   end for
-  */
 end program.
