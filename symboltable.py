@@ -1,9 +1,6 @@
 from scanner import Token
 from runtimeprocedures import SYMBOL_TABLE_ENTRIES
 
-
-
-
 class ScopeStack:
     def __init__(self):
         self.stack = []
