@@ -27,7 +27,10 @@ class ParseTreeNode:
     def printable_string(self,depth=0):
         s = self._as_string(depth)
         for child in self.children:
-            s += '\n' + child.printable_string(depth + 1)
+            if child is None:
+                print "DEBUG: " + self.name
+            else:
+                s += '\n' + child.printable_string(depth + 1)
         return s
 
     def is_binary_operation(self):
@@ -112,10 +115,10 @@ class Parser:
     def parse_unvectorization_template(self,tokens):
         self._tokens = tokens
         self._current_token_index = 0
-        assignment_1 = self._parse_statement()
-        assignment_2 = self._parse_statement()
+        set_max = self._parse_statement()
+        set_counter = self._parse_statement()
         loop = self._parse_loop()
-        return [assignment_1, assignment_2, loop]
+        return [set_max, set_counter, loop]
 
     def _parse_program(self):
         program = ParseTreeNode('program')
