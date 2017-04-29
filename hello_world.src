@@ -1,0 +1,7 @@
+
+
+program hello_world is
+begin
+  putString("hello world");
+  putnewline();
+end program.
