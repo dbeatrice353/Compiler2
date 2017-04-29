@@ -1,0 +1,23 @@
+
+
+program test_program is
+  global integer x[10];
+  integer y[10];
+  integer z;
+
+  procedure proc(integer foo[10] in, integer bar[10] inout, integer a in)
+  begin
+    foo := foo + bar + a + x;
+    putinteger(foo[3]);
+    putnewline();
+  end procedure
+
+begin
+  x := 5;
+  y := 10;
+  z := 2;
+  x := y*4 + z;
+  putinteger(x[0]);
+  putnewline();
+  proc(x,y,5-3);
+end program.
