@@ -50,6 +50,7 @@ class SemanticAnalyzer:
         self._check_for_dimensional_errors()
         self._check_array_index_types()
         self._check_procedure_arguments(program_body)
+        self._check_for_vectorized_arg_expressions()
 
     def _next_operation_record_id(self):
         temp = self._operation_record_counter
@@ -82,6 +83,10 @@ class SemanticAnalyzer:
         for each in index_type_errors:
             self._report_error("array index must be an integer.",each['line'])
 
+    def _check_for_vectorized_arg_expressions(self):
+        errors = filter(lambda r: r['is_arg'] and r['dimension'] is not None and r["operator"] is not None,self._operation_records)
+        for each in errors:
+            self._report_error("Vectorized expressions cannot be used directly as procedure arguments.",each['line'])
 
     def _check_procedure_arguments(self,program_body):
         proc_calls = self._gather_proc_calls(program_body)
