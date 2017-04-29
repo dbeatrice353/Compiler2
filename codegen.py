@@ -491,7 +491,6 @@ class CodeGenerator:
     def _handle_loop(self, node):
         assignment = node.children[0]
         expression = node.children[1]
-        self._handle_assignment(assignment)
         expression_label = self._next_label()
         self._put(";--- loop statement ---")
         self._generate_unconditional_branch(expression_label)
@@ -502,6 +501,7 @@ class CodeGenerator:
         if len(node.children) > 2:
             for child in node.children[2:]:
                 self._generate(child)
+        self._handle_assignment(assignment)
         self._generate_unconditional_branch(expression_label)
         self._generate_label(if_false)
 

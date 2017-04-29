@@ -15,36 +15,34 @@ program foo_bar_spam is
     integer i;
   begin
     max := array[0] - 1;
-    for(i := 0; i < 10)
+    i := 0;
+    for(i := i + 1; i < 10)
       if(array[i] > max)then
         max := array[i];
       end if
-      i := i + 1;
     end for
     return;
   end procedure
 
 begin
-
-  for(i := 0; i < 10)
+  i := 0;
+  for(i := i + 1; i < 10)
     putString("enter_an_int:");
     getInteger(x[i]);
-    i := i + 1;
   end for
 
   putnewline();
   putstring("numbers_you_entered:");
-
-  for(i := 0; i < 10)
+  i := 0;
+  for(i := i + 1; i < 10)
     putInteger(x[i]);
     putchar(',');
-    i := i + 1;
   end for
 
   putnewline();
 
   get_max(x,max);
-  
+
   putnewline();
   putString("max:");
   putInteger(max);
