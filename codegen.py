@@ -24,7 +24,9 @@ class CodeGenerator:
         self._generate_global_variable_declarations(node)
         self._generate_procedure_declarations(node)
         self._generate_main_header()
+        self._generate_init_heap()
         self._generate(node)
+        self._generate_cleanup_heap()
         self._generate_main_footer()
         self._output_file_ptr.close()
 
@@ -223,6 +225,12 @@ class CodeGenerator:
 
     def _generate_label(self, label):
         self._put(label + ":")
+
+    def _generate_init_heap(self):
+        self._put("call void @init_heap()")
+
+    def _generate_cleanup_heap(self):
+        self._put("call void @cleanup_heap()")
 
     def _global_name(self,identifier):
         return "@" + identifier

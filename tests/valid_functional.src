@@ -3,6 +3,7 @@
 program valid_functional is
 
   integer i;
+  integer j;
   integer ia[10];
 
   float f;
@@ -15,13 +16,55 @@ program valid_functional is
   begin
     putinteger(test_id);
     putchar(':');
-    putbool(result);
+    if(result)then
+      putstring("pass");
+    else
+      putstring("FAIL");
+    end if
+    putnewline();
+  end procedure
+
+  procedure report_floats(integer test_id in, float f1 in, float f2 in)
+  begin
+    putinteger(test_id);
+    putchar(':');
+    putfloat(f1);
+    putchar(',');
+    putfloat(f2);
     putnewline();
   end procedure
 
 begin
 
-  report(12,false);
-  report(-3,true);
+  i := 3 + 5 + 7 + 3.14;
+  report(1,i == 18);
 
+  i := 9/3 + 3*2;
+  report(2,i == 9);
+
+  f := 5.12 + 3.14;
+  report_floats(3,f,8.26);
+
+  f := (5.12 + 3.14)/8;
+  report_floats(4,f,1.0325);
+
+  fa[0] := 1.1;
+  fa[1] := 2.2;
+  fa[2] := 3.3;
+
+  fa[3] := fa[0]*fa[1] - 3.14/fa[2];
+  report_floats(5,fa[3],1.468);
+
+  for(i:=0; i<5)
+    for(j:=5; j<10)
+      putinteger(i);
+      putstring("_times_");
+      putinteger(j);
+      putstring("_equals_");
+      putinteger(i*j);
+      putnewline();
+      i := i + 1;
+      j := j + 1;
+    end for
+  end for
 end program.
