@@ -250,5 +250,29 @@ SYMBOL_TABLE_ENTRIES = [
             'definition_line':-1,
             'initialized':False,
             'global': False
+        },
+        {
+            'identifier':'max_697476643',
+            'type': 'variable',
+            'scope':'main',
+            'data_type':'integer',
+            'array_length':None,
+            'direction':None,
+            'is_argument':False,
+            'definition_line':-1,
+            'initialized':False,
+            'global': True
+        },
+        {
+            'identifier':'i_697476643',
+            'type': 'variable',
+            'scope':'main',
+            'data_type':'integer',
+            'array_length':None,
+            'direction':None,
+            'is_argument':False,
+            'definition_line':-1,
+            'initialized':False,
+            'global': True
         }
 ]
